@@ -89,9 +89,14 @@ export async function api<T>(metodo: string, rota: string, corpo?: unknown, opts
     if (!(await renovarToken())) throw new SessaoExpiradaError();
     resposta = await enviar(sessao.get()!.accessToken);
   }
-  if (resposta.status === 502 || resposta.status === 503 || resposta.status === 504) {
-    // Gateway sem o serviço: para o dispositivo é o mesmo que estar sem rede.
-    if (!(resposta.headers.get('content-type') ?? '').includes('json')) throw new NetworkUnavailableError();
+  if ([502, 503, 504].includes(resposta.status) && !(resposta.headers.get('content-type') ?? '').includes('json')) {
+    // O gateway respondeu, mas o serviço por trás dele está fora do ar.
+    throw new ApiError(resposta.status, {
+      title: 'Central indisponível',
+      status: resposta.status,
+      codigo: 'SERVICO_INDISPONIVEL',
+      detail: `O servidor respondeu, mas o serviço desta função não está no ar (erro ${resposta.status}). Confira se todos os serviços subiram.`,
+    });
   }
   if (!resposta.ok) {
     let problem: Problem | null = null;

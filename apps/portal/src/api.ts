@@ -65,7 +65,15 @@ async function falha(r: Response): Promise<never> {
   try {
     p = (await r.json()) as Problem;
   } catch {
-    /* sem corpo */
+    if ([502, 503, 504].includes(r.status)) {
+      // O gateway respondeu, mas o serviço por trás dele está fora do ar.
+      p = {
+        title: 'Serviço indisponível',
+        status: r.status,
+        codigo: 'SERVICO_INDISPONIVEL',
+        detail: `O servidor respondeu, mas o serviço desta função não está no ar (erro ${r.status}). Confira se todos os serviços subiram.`,
+      };
+    }
   }
   throw new ApiError(r.status, p);
 }

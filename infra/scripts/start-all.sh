@@ -71,6 +71,28 @@ for i in $(seq 1 90); do
     echo "  Logs:                  $RUNTIME/logs/"
     exit 0
   fi
+  for nome in identity clinical document; do
+    if ! kill -0 "$(cat "$RUNTIME/$nome.pid")" 2>/dev/null; then
+      echo -n " ($nome-service encerrou)"; break 2
+    fi
+  done
   echo -n "."; sleep 1
 done
-echo " falhou — veja $RUNTIME/logs/"; exit 1
+echo " falhou."
+echo
+# Diagnóstico: qual serviço não respondeu e o final do log dele.
+for svc in "identity:8081:/auth/me" "clinical:3001:/medicamento" "document:8000:/ficha/access-log"; do
+  IFS=: read -r nome porta rota <<< "$svc"
+  codigo=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$porta$rota" || true)
+  if [[ "$codigo" == "401" ]]; then
+    echo "  ✔ $nome-service no ar (porta $porta)"
+  elif kill -0 "$(cat "$RUNTIME/$nome.pid" 2>/dev/null)" 2>/dev/null; then
+    echo "  … $nome-service ainda iniciando (processo vivo, porta $porta sem resposta)"
+  else
+    echo "  ✘ $nome-service ENCERROU COM ERRO. Últimas linhas de .runtime/logs/$nome.log:"
+    echo "  ------------------------------------------------------------------"
+    tail -n 25 "$RUNTIME/logs/$nome.log" 2>/dev/null | sed 's/^/  │ /'
+    echo "  ------------------------------------------------------------------"
+  fi
+done
+exit 1
