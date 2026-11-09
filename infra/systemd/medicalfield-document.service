@@ -1,0 +1,14 @@
+[Unit]
+Description=MedicalField document-service (Python · FastAPI)
+After=network.target postgresql.service medicalfield-clinical.service
+
+[Service]
+User=medicalfield
+EnvironmentFile=/etc/medicalfield/document.env
+WorkingDirectory=/opt/medicalfield/document-service
+ExecStart=/opt/medicalfield/document-service/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=MedicalField clinical-service (TypeScript · NestJS)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=medicalfield
+EnvironmentFile=/etc/medicalfield/clinical.env
+WorkingDirectory=/opt/medicalfield/clinical-service
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

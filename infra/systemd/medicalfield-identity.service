@@ -1,0 +1,15 @@
+[Unit]
+Description=MedicalField identity-service (Java · Spring Boot)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=medicalfield
+EnvironmentFile=/etc/medicalfield/identity.env
+WorkingDirectory=/opt/medicalfield/identity-service
+ExecStart=/usr/bin/java -Xms128m -Xmx384m -jar identity-service.jar
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
