@@ -69,11 +69,12 @@ PORT=8000
 DATABASE_URL=postgresql+psycopg://mf_document:$PW_DOCUMENT@127.0.0.1:5432/medicalfield
 JWT_PUBLIC_KEY_PATH=$RUNTIME/keys/jwt-public.pem
 CLINICAL_BASE_URL=http://127.0.0.1:3001
+IDENTITY_BASE_URL=http://127.0.0.1:8081
 FICHAS_DIR=$RUNTIME/fichas
 # Sem SMTP_HOST os e-mails são gravados como .eml em MAIL_OUTBOX_DIR.
 # Para envio real (Gmail com senha de app, Brevo...), defina SMTP_* em .runtime/env/smtp.env
 MAIL_OUTBOX_DIR=$RUNTIME/mail
-SMTP_FROM=MedicalField <nao-responda@medicalfield.local>
+SMTP_FROM="MedicalField <nao-responda@medicalfield.local>"
 ENV
 if [[ -f "$RUNTIME/env/smtp.env" ]]; then cat "$RUNTIME/env/smtp.env" >> "$RUNTIME/env/document.env"; fi
 chmod 600 "$RUNTIME"/env/*.env
