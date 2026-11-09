@@ -1,0 +1,21 @@
+{
+  "name": "medicalfield",
+  "private": true,
+  "description": "MedicalField — Prontuário Médico de Emergência (offline-first)",
+  "workspaces": [
+    "packages/shared",
+    "packages/design",
+    "services/clinical-service",
+    "apps/client",
+    "apps/portal"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @medicalfield/shared",
+    "build": "npm run build:shared && npm run build -w @medicalfield/clinical-service && npm run build -w @medicalfield/client && npm run build -w @medicalfield/portal",
+    "test": "npm run test -w @medicalfield/shared && npm run test -w @medicalfield/clinical-service && npm run test -w @medicalfield/client",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
