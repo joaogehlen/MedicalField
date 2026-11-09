@@ -47,7 +47,10 @@ Ainda no Ubuntu (troque `joao.gehlen` pelo seu usuário do Windows, se for outro
 cd /mnt/c/Users/joao.gehlen/Desktop
 git clone https://github.com/joaogehlen/MedicalField.git
 cd MedicalField
+git config --global --add safe.directory "$PWD"
 ```
+
+> A última linha autoriza o Git a usar uma pasta do Windows (sem ela, `git pull` falha com *“detected dubious ownership”*).
 
 Pronto: a pasta **MedicalField** aparece na sua Área de Trabalho do Windows.
 
@@ -165,6 +168,8 @@ Depois suba de novo com `sudo MF_BUILD=0 infra/scripts/start-all.sh`.
 
 | Sintoma | Solução |
 |---|---|
+| `fatal: detected dubious ownership in repository` no `git pull` | Rode uma vez, dentro da pasta: `git config --global --add safe.directory "$PWD"` e repita o `git pull`. |
+| `password authentication failed for user "mf_identity"` | Atualize o projeto (`git pull`) e suba de novo: o script agora detecta a porta do PostgreSQL. Se persistir, pare o PostgreSQL instalado no Windows (Win+R → `services.msc` → *postgresql-x64-…* → Parar). |
 | “Este arquivo não tem um aplicativo associado” ao rodar um `.sh` | Você digitou no terminal do Windows. Use `iniciar.bat` ou abra o **Ubuntu** (item 4). |
 | `'wsl' não é reconhecido` | Falta instalar o WSL (item 1). |
 | `\r: command not found` ao rodar um script | O projeto foi clonado pelo Git do Windows. Apague a pasta e clone de novo **pelo Ubuntu** (item 3). |
