@@ -1,5 +1,5 @@
 # Dependências e builds
-node_modules/
+node_modules
 dist/
 build/
 target/

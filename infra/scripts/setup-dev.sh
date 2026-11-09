@@ -31,9 +31,9 @@ source "$SECRETS"
 
 run_psql() {
   if [[ "$(id -u)" == "0" ]]; then
-    su postgres -c "psql -v ON_ERROR_STOP=1 -q -v pw_identity=$PW_IDENTITY -v pw_clinical=$PW_CLINICAL -v pw_document=$PW_DOCUMENT -f -" < "$1"
+    su postgres -c "PGOPTIONS='-c client_min_messages=warning' psql -v ON_ERROR_STOP=1 -q -v pw_identity=$PW_IDENTITY -v pw_clinical=$PW_CLINICAL -v pw_document=$PW_DOCUMENT -f -" < "$1"
   else
-    psql -v ON_ERROR_STOP=1 -q -v pw_identity="$PW_IDENTITY" -v pw_clinical="$PW_CLINICAL" -v pw_document="$PW_DOCUMENT" -f "$1"
+    PGOPTIONS='-c client_min_messages=warning' psql -v ON_ERROR_STOP=1 -q -v pw_identity="$PW_IDENTITY" -v pw_clinical="$PW_CLINICAL" -v pw_document="$PW_DOCUMENT" -f "$1"
   fi
 }
 run_psql "$ROOT/infra/db/init.sql"

@@ -415,3 +415,7 @@ input[data-alterado] { border-color: var(--t-laranja) !important; background: #f
 .zona-perigo h2 { font-size: var(--t-md); }
 .ocorrencia > .tag-triagem { min-width: 96px; }
 .tabela td.mono { white-space: nowrap; }
+@media (max-width: 560px) {
+  .barra-acoes.fixa { flex-wrap: nowrap; padding: var(--e-2); }
+  .barra-acoes.fixa .btn { flex: 1 1 0; min-width: 0; white-space: normal; text-align: center; line-height: 1.15; padding: 0 var(--e-2); }
+}

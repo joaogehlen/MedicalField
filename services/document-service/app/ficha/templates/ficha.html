@@ -41,7 +41,7 @@
 
   /* Etiqueta de triagem com ilhós */
   .etiqueta { width: 52mm; padding: 9px 12px 9px 26px; position: relative; color: #fff; }
-  .etiqueta::before { content: ""; position: absolute; left: 9px; top: 50%; width: 9px; height: 9px; margin-top: -5px; border-radius: 50%; background: var(--farda); box-shadow: 0 0 0 2px rgba(255,255,255,.75); }
+  .etiqueta::before { content: ""; position: absolute; left: 9px; top: 13px; width: 9px; height: 9px; border-radius: 50%; background: var(--farda); box-shadow: 0 0 0 2px rgba(255,255,255,.75); }
   .etiqueta .proto { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; opacity: .9; }
   .etiqueta .cor { font-size: 15pt; font-weight: 700; line-height: 1.1; }
   .etiqueta .sig { font-size: 8.5pt; }
@@ -49,9 +49,9 @@
   .t-AMARELO { background: var(--amarelo); color: var(--tinta); } .t-AMARELO::before { box-shadow: 0 0 0 2px rgba(15,27,36,.4); }
   .t-VERDE { background: var(--verde); } .t-AZUL { background: var(--azul); } .t-PRETO { background: var(--preto); }
 
-  .situacao { margin: 6px 0 0; font-size: 8pt; color: var(--tinta-2); display: flex; gap: 14px; }
-  .selo-offline { color: var(--tinta); font-weight: 700; padding: 1px 6px; border-radius: 3px;
-    background: repeating-linear-gradient(-45deg, #f2b300 0 6px, #ffe9a6 6px 12px); }
+  .situacao { margin: 6px 0 0; font-size: 8pt; color: var(--tinta-2); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .situacao > span { white-space: nowrap; margin-right: 12px; }
+  .selo-offline { color: var(--tinta); font-weight: 700; padding: 1px 7px; border-radius: 3px; background: #ffe08a; border: 1.5px solid #1a1a1a; }
 
   section { margin-top: 10px; break-inside: avoid; }
   h2 { margin: 0 0 4px; font-size: 9pt; text-transform: uppercase; letter-spacing: .07em; color: var(--farda); padding-bottom: 3px; border-bottom: 1px solid var(--farda); }
