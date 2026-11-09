@@ -414,3 +414,4 @@ input[data-alterado] { border-color: var(--t-laranja) !important; background: #f
 .zona-perigo { display: grid; gap: var(--e-2); justify-items: start; padding-top: var(--e-4); border-top: 1px solid var(--regua); }
 .zona-perigo h2 { font-size: var(--t-md); }
 .ocorrencia > .tag-triagem { min-width: 96px; }
+.tabela td.mono { white-space: nowrap; }

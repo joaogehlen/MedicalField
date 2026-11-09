@@ -4,7 +4,7 @@ const dataHora = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-di
 const dataCompleta = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const hora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-export const fmtDataHora = (iso?: string | null) => (iso ? dataHora.format(new Date(iso)) : '—');
+export const fmtDataHora = (iso?: string | null) => (iso ? dataHora.format(new Date(iso)).replace(', ', ' ') : '—');
 export const fmtHora = (iso?: string | null) => (iso ? hora.format(new Date(iso)) : '—');
 export const fmtData = (iso?: string | null) => (iso ? dataCompleta.format(new Date(iso.length === 10 ? `${iso}T12:00:00` : iso)) : '—');
 export const fmtCpf = (cpf?: string | null) => (cpf ? formatarCpf(cpf) : '—');
@@ -41,5 +41,5 @@ export const deInputLocal = (v: string) => new Date(v).toISOString();
 export function fmtQuando(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toDateString() === new Date().toDateString() ? hora.format(d) : dataHora.format(d);
+  return d.toDateString() === new Date().toDateString() ? hora.format(d) : dataHora.format(d).replace(', ', ' ');
 }
