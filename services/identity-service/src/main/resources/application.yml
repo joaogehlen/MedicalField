@@ -1,0 +1,46 @@
+server:
+  port: ${SERVER_PORT:8081}
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  forward-headers-strategy: none
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/medicalfield?currentSchema=identity}
+    username: ${SPRING_DATASOURCE_USERNAME:mf_identity}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+  flyway:
+    schemas: identity
+    default-schema: identity
+    create-schemas: false
+  jackson:
+    default-property-inclusion: always
+    serialization:
+      write-dates-as-timestamps: false
+  main:
+    banner-mode: off
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /docs
+
+medicalfield:
+  jwt:
+    issuer: medicalfield-identity
+    private-key-path: ${JWT_PRIVATE_KEY_PATH:/etc/medicalfield/jwt-private.pem}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:/etc/medicalfield/jwt-public.pem}
+    access-ttl-seconds: ${JWT_ACCESS_TTL:900}
+    refresh-ttl-seconds: ${JWT_REFRESH_TTL:43200}
+  seed:
+    # Senha dos profissionais de demonstração criados quando a tabela está vazia.
+    senha: ${MEDICALFIELD_SEED_SENHA:medicalfield}
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: WARN
