@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ficha de Atendimento {{ numero }}</title>
+<style>
+  @font-face { font-family: "Atkinson Next"; font-weight: 400; src: url("fonts/atkinson-hyperlegible-next-latin-400-normal.woff2"); }
+  @font-face { font-family: "Atkinson Next"; font-weight: 700; src: url("fonts/atkinson-hyperlegible-next-latin-700-normal.woff2"); }
+  @font-face { font-family: "Atkinson Mono"; font-weight: 400; src: url("fonts/atkinson-hyperlegible-mono-latin-400-normal.woff2"); }
+  @font-face { font-family: "Atkinson Mono"; font-weight: 600; src: url("fonts/atkinson-hyperlegible-mono-latin-600-normal.woff2"); }
+
+  :root {
+    --farda: #10283d;
+    --tinta: #0f1b24;
+    --tinta-2: #4a5a66;
+    --regua: #c9d2d8;
+    --papel: #f4f6f7;
+    --vermelho: #c8102e; --laranja: #e8620f; --amarelo: #f2c200; --verde: #1b8a4f; --azul: #1f63c6; --preto: #111111;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm 13mm 18mm;
+    @bottom-left {
+      content: "Atendimento {{ id }} · Dados pessoais de saúde (LGPD, art. 11): uso restrito ao cuidado do paciente.";
+      font-family: "Atkinson Next"; font-size: 7pt; color: #4a5a66; width: 150mm;
+    }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: "Atkinson Next"; font-size: 7pt; color: #4a5a66; width: 30mm; }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Atkinson Next", sans-serif; font-size: 9.5pt; line-height: 1.35; color: var(--tinta); }
+  .mono { font-family: "Atkinson Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  /* Casca: faixa azul-marinho da farda */
+  .casca { display: flex; justify-content: space-between; align-items: stretch; background: var(--farda); color: #fff; border-radius: 6px; overflow: hidden; }
+  .casca .titulo { padding: 10px 14px; }
+  .casca .marca { font-weight: 700; font-size: 8pt; letter-spacing: .02em; color: #b9c8d6; }
+  .casca h1 { margin: 2px 0 0; font-size: 15pt; line-height: 1.15; }
+  .casca .num { margin-top: 4px; font-size: 8.5pt; color: #dbe4ec; }
+
+  /* Etiqueta de triagem com ilhós */
+  .etiqueta { width: 52mm; padding: 9px 12px 9px 26px; position: relative; color: #fff; }
+  .etiqueta::before { content: ""; position: absolute; left: 9px; top: 50%; width: 9px; height: 9px; margin-top: -5px; border-radius: 50%; background: var(--farda); box-shadow: 0 0 0 2px rgba(255,255,255,.75); }
+  .etiqueta .proto { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; opacity: .9; }
+  .etiqueta .cor { font-size: 15pt; font-weight: 700; line-height: 1.1; }
+  .etiqueta .sig { font-size: 8.5pt; }
+  .t-VERMELHO { background: var(--vermelho); } .t-LARANJA { background: var(--laranja); }
+  .t-AMARELO { background: var(--amarelo); color: var(--tinta); } .t-AMARELO::before { box-shadow: 0 0 0 2px rgba(15,27,36,.4); }
+  .t-VERDE { background: var(--verde); } .t-AZUL { background: var(--azul); } .t-PRETO { background: var(--preto); }
+
+  .situacao { margin: 6px 0 0; font-size: 8pt; color: var(--tinta-2); display: flex; gap: 14px; }
+  .selo-offline { color: var(--tinta); font-weight: 700; padding: 1px 6px; border-radius: 3px;
+    background: repeating-linear-gradient(-45deg, #f2b300 0 6px, #ffe9a6 6px 12px); }
+
+  section { margin-top: 10px; break-inside: avoid; }
+  h2 { margin: 0 0 4px; font-size: 9pt; text-transform: uppercase; letter-spacing: .07em; color: var(--farda); padding-bottom: 3px; border-bottom: 1px solid var(--farda); }
+
+  /* Campos de formulário: rótulo acima, valor abaixo, réguas de 1px */
+  .grade { display: grid; gap: 0 12px; }
+  .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: 2fr 1fr 1fr; } .g4 { grid-template-columns: repeat(4, 1fr); }
+  .campo { padding: 4px 0 5px; border-bottom: 1px solid var(--regua); }
+  .rot { font-size: 7pt; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-2); }
+  .val { font-size: 10pt; min-height: 13pt; }
+  .val.forte { font-weight: 700; }
+
+  .alergias { margin-top: 6px; padding: 6px 10px; border: 1.5px solid var(--vermelho); border-radius: 5px; background: #fdecee; }
+  .alergias .rot { color: #8f0b20; font-weight: 700; }
+  .alergias .val { font-weight: 700; color: #8f0b20; }
+  .sem-alergia { margin-top: 6px; font-size: 8.5pt; color: var(--tinta-2); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th { text-align: left; font-size: 7pt; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-2); font-weight: 400; padding: 3px 6px; border-bottom: 1px solid var(--farda); }
+  td { padding: 4px 6px; border-bottom: 1px solid var(--regua); vertical-align: top; }
+  td.n, th.n { text-align: right; }
+  .sub { color: var(--tinta-2); font-size: 8pt; }
+  .vazio { color: var(--tinta-2); font-style: italic; padding: 4px 0; }
+
+  .glasgow { display: grid; grid-template-columns: 1fr 1fr 1fr 22mm; gap: 0 10px; align-items: end; }
+  .glasgow .total { text-align: center; border: 1px solid var(--farda); border-radius: 5px; padding: 4px; }
+  .glasgow .total .val { font-size: 16pt; font-weight: 700; }
+
+  .lista { margin: 2px 0 0; padding-left: 14px; }
+  .texto { white-space: pre-wrap; }
+  .assinatura { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .assinatura .linha { border-top: 1px solid var(--tinta); padding-top: 3px; font-size: 8.5pt; }
+  .emissao { margin-top: 6px; font-size: 7.5pt; color: var(--tinta-2); }
+</style>
+</head>
+<body>
+
+<header class="casca">
+  <div class="titulo">
+    <div class="marca">MEDICALFIELD · ATENDIMENTO PRÉ-HOSPITALAR</div>
+    <h1>Ficha de Atendimento</h1>
+    <div class="num">Nº <span class="mono">{{ numero }}</span> · {{ status }} · Início <span class="mono">{{ iniciado }}</span>{% if status == 'Finalizado' %} · Fim <span class="mono">{{ finalizado }}</span>{% endif %}</div>
+  </div>
+  <div class="etiqueta t-{{ triagem.classificacao }}">
+    <div class="proto">Triagem {{ triagem.protocolo }}</div>
+    <div class="cor">{{ triagem.cor }}</div>
+    <div class="sig">{{ triagem.significado }}</div>
+  </div>
+</header>
+<div class="situacao">
+  {% if offline %}<span class="selo-offline">Registrado offline</span>{% endif %}
+  <span>Recebido pela central em <span class="mono">{{ sincronizado }}</span></span>
+  <span>Emitida em <span class="mono">{{ emitido_em }}</span> por {{ emitido_por }}</span>
+</div>
+
+<section>
+  <h2>Paciente</h2>
+  <div class="grade g3">
+    <div class="campo"><div class="rot">Nome</div><div class="val forte">{{ paciente.nome }}{% if not paciente.identificada %} (não identificado){% endif %}</div></div>
+    <div class="campo"><div class="rot">CPF</div><div class="val mono">{{ paciente.cpf }}</div></div>
+    <div class="campo"><div class="rot">Tipo sanguíneo</div><div class="val forte">{{ prontuario.tipo_sanguineo }}</div></div>
+  </div>
+  <div class="grade g4">
+    <div class="campo"><div class="rot">Nascimento</div><div class="val mono">{{ paciente.nascimento }}</div></div>
+    <div class="campo"><div class="rot">Idade</div><div class="val">{{ paciente.idade }}</div></div>
+    <div class="campo"><div class="rot">Sexo</div><div class="val">{{ paciente.sexo }}</div></div>
+    <div class="campo"><div class="rot">Telefone</div><div class="val mono">{{ paciente.telefone }}</div></div>
+  </div>
+  <div class="grade g2">
+    <div class="campo"><div class="rot">Contato responsável</div><div class="val">{{ paciente.contato }}</div></div>
+    <div class="campo"><div class="rot">Comorbidades</div><div class="val">{{ prontuario.comorbidades }}</div></div>
+  </div>
+  {% if paciente.caracteristicas %}
+  <div class="campo"><div class="rot">Características (vítima não identificada)</div><div class="val texto">{{ paciente.caracteristicas }}</div></div>
+  {% endif %}
+  <div class="campo"><div class="rot">Medicamentos de uso contínuo</div><div class="val">{{ prontuario.uso_continuo }}</div></div>
+  {% if prontuario.alergias %}
+  <div class="alergias"><div class="rot">Alergias</div><div class="val">{{ prontuario.alergias | join(' · ') }}</div></div>
+  {% else %}
+  <div class="sem-alergia">Nenhuma alergia registrada no prontuário.</div>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Ocorrência</h2>
+  <div class="grade g2">
+    <div class="campo"><div class="rot">Local</div><div class="val">{{ ocorrencia.local }}{% if ocorrencia.coordenadas %} <span class="sub mono">({{ ocorrencia.coordenadas }})</span>{% endif %}</div></div>
+    <div class="campo"><div class="rot">Queixa principal</div><div class="val forte">{{ ocorrencia.queixa }}</div></div>
+  </div>
+  <div class="grade g2">
+    <div class="campo"><div class="rot">Viatura</div><div class="val">{{ ocorrencia.viatura }}</div></div>
+    <div class="campo"><div class="rot">Destino</div><div class="val">{{ ocorrencia.destino }}</div></div>
+  </div>
+  {% if ocorrencia.descricao %}
+  <div class="campo"><div class="rot">Descrição</div><div class="val texto">{{ ocorrencia.descricao }}</div></div>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Nível de consciência · Escala de Glasgow</h2>
+  <div class="glasgow">
+    {% for nome, valor, desc in glasgow.itens %}
+    <div class="campo"><div class="rot">{{ nome }}</div><div class="val"><span class="mono">{{ valor }}</span> · {{ desc }}</div></div>
+    {% endfor %}
+    <div class="total"><div class="rot">Total</div><div class="val mono">{{ glasgow.total }}</div><div class="sub">{{ glasgow.gravidade }}</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Sinais vitais</h2>
+  {% if sinais %}
+  <table>
+    <thead><tr><th>Hora</th><th class="n">PA (mmHg)</th><th class="n">FC (bpm)</th><th class="n">FR (irpm)</th><th class="n">SpO₂ (%)</th><th class="n">Temp. (°C)</th><th class="n">Glicemia</th><th class="n">Dor</th></tr></thead>
+    <tbody>
+    {% for s in sinais %}
+      <tr class="mono"><td>{{ s.hora }}</td><td class="n">{{ s.pa }}</td><td class="n">{{ s.fc }}</td><td class="n">{{ s.fr }}</td><td class="n">{{ s.spo2 }}</td><td class="n">{{ s.temp }}</td><td class="n">{{ s.glic }}</td><td class="n">{{ s.dor }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="vazio">Nenhuma aferição registrada.</div>{% endif %}
+</section>
+
+<section>
+  <h2>Medicamentos administrados</h2>
+  {% if medicamentos %}
+  <table>
+    <thead><tr><th>Hora</th><th>Medicamento</th><th class="n">Dose</th><th>Via</th><th>Administrado por</th></tr></thead>
+    <tbody>
+    {% for m in medicamentos %}
+      <tr>
+        <td class="mono">{{ m.hora }}</td>
+        <td><strong>{{ m.nome }}</strong><div class="sub">{{ m.apresentacao }}</div>
+          {% if m.obs %}<div class="sub">{{ m.obs }}</div>{% endif %}
+          {% for j in m.justificativas %}<div class="sub">Alerta justificado — {{ j }}</div>{% endfor %}</td>
+        <td class="n mono">{{ m.dose }}</td>
+        <td class="mono">{{ m.via }}</td>
+        <td>{{ m.por }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="vazio">Nenhum medicamento administrado.</div>{% endif %}
+</section>
+
+{% if ocorrencia.procedimentos %}
+<section>
+  <h2>Procedimentos</h2>
+  <ul class="lista">{% for p in ocorrencia.procedimentos %}<li>{{ p }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if adendos %}
+<section>
+  <h2>Adendos</h2>
+  {% for d in adendos %}<div class="campo"><div class="rot mono">{{ d.quando }}</div><div class="val texto">{{ d.texto }}</div></div>{% endfor %}
+</section>
+{% endif %}
+
+<div class="assinatura">
+  <div class="linha">{{ responsavel }}<div class="sub">Profissional responsável pelo registro</div></div>
+  <div class="linha">&nbsp;<div class="sub">Recebido por (unidade de destino)</div></div>
+</div>
+<div class="emissao">A integridade deste arquivo pode ser conferida pelo hash SHA-256 registrado no MedicalField.</div>
+
+</body>
+</html>
