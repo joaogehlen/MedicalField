@@ -1,0 +1,21 @@
+# Dependências e builds
+node_modules/
+dist/
+build/
+target/
+.venv/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+
+# Configuração local / segredos
+.env
+.env.*
+!.env.example
+*.pem
+.runtime/
+
+# IDEs / SO
+.idea/
+.vscode/
+.DS_Store
