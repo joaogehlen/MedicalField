@@ -34,6 +34,8 @@ Padrões de projeto: **Repository**, **Strategy** e **Observer** (exigidos), mai
 
 ## Rodar
 
+**No Windows, siga o passo a passo em [COMO-RODAR.md](COMO-RODAR.md)** (instalação do WSL, download para a Área de Trabalho, logins e roteiro).
+
 ```bash
 infra/scripts/start-all.sh          # banco, build, três serviços e Nginx
 # Cliente:  http://localhost:8080/app/       CRM 12345 / RS · senha medicalfield

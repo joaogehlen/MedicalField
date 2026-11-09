@@ -1,0 +1,7 @@
+# Mantém finais de linha Unix (LF) mesmo quando o repositório é clonado no Windows:
+# scripts .sh com CRLF quebram no bash ("\r: command not found").
+* text=auto eol=lf
+*.png binary
+*.pdf binary
+*.woff2 binary
+*.jar binary
