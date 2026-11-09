@@ -11,9 +11,15 @@ RUNTIME="$ROOT/.runtime"
 mkdir -p "$RUNTIME"/{env,keys,logs,fichas,mail}
 
 # --- PostgreSQL --------------------------------------------------------------
+# Debian/Ubuntu/WSL: sobe o primeiro cluster existente (qualquer versão), se estiver parado.
 if command -v pg_lsclusters >/dev/null 2>&1; then
-  if ! pg_lsclusters | awk 'NR>1 && $4=="online"' | grep -q .; then
-    pg_ctlcluster 16 main start
+  if ! pg_lsclusters --no-header | awk '$4=="online"' | grep -q .; then
+    read -r PG_VER PG_NOME _ < <(pg_lsclusters --no-header | head -1) || true
+    if [[ -z "${PG_VER:-}" ]]; then
+      echo "Nenhum cluster PostgreSQL encontrado. Instale com: sudo apt install postgresql" >&2
+      exit 1
+    fi
+    pg_ctlcluster "$PG_VER" "$PG_NOME" start
   fi
 fi
 
