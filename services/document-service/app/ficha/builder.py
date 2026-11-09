@@ -82,7 +82,9 @@ class FichaAtendimentoBuilder:
         self._ctx["id"] = a["id"]
         self._ctx["status"] = "Finalizado" if a["status"] == "FINALIZADO" else "Em andamento"
         self._ctx["iniciado"] = _dh(a["iniciadoEm"])
-        self._ctx["finalizado"] = _dh(a.get("finalizadoEm"))
+        fim = a.get("finalizadoEm")
+        # Mesmo dia do início: basta a hora.
+        self._ctx["finalizado"] = _hora(fim) if fim and _dh(fim)[:10] == _dh(a["iniciadoEm"])[:10] else _dh(fim)
         self._ctx["offline"] = bool(a.get("criadoOffline"))
         self._ctx["sincronizado"] = _dh(a.get("sincronizadoEm"))
         return self
