@@ -124,7 +124,7 @@ Abra esses endereços **no navegador do Windows** (Chrome, Edge…). Eles funcio
 2. Deixe o **portal** numa janela e o **cliente** em outra, lado a lado.
 3. Siga a tabela de [docs/06-roteiro-testes.md](docs/06-roteiro-testes.md). Para o **passo 9** (inserir medicamentos pelo banco), rode no Ubuntu:
    ```bash
-   sudo -u postgres psql -d medicalfield -f infra/db/roteiro/passo-09-novos-medicamentos.sql
+   infra/scripts/passo-09.sh
    ```
 4. Para o **passo 12**, use a chave **Online/Offline** no topo do cliente: a faixa listrada amarela mostra que está offline.
 
