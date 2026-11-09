@@ -5,3 +5,5 @@
 *.pdf binary
 *.woff2 binary
 *.jar binary
+# Scripts do Windows precisam de CRLF.
+*.bat text eol=crlf

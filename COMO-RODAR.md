@@ -57,7 +57,23 @@ Pronto: a pasta **MedicalField** aparece na sua Área de Trabalho do Windows.
 
 ## 4. Subir o sistema
 
-Dentro da pasta do projeto, no Ubuntu:
+> ⚠️ **Os comandos `.sh` NÃO funcionam no PowerShell, no Prompt de Comando nem no terminal do Windows do VS Code.** Se aparecer “Este arquivo não tem um aplicativo associado”, você está no terminal do Windows. Use um dos dois jeitos abaixo.
+
+### Jeito A — dois cliques (mais fácil)
+
+Na pasta **MedicalField** da Área de Trabalho:
+
+| Arquivo | O que faz |
+|---|---|
+| `iniciar.bat` | Compila e sobe tudo (use na **primeira vez** e depois de mudar o código) |
+| `iniciar-rapido.bat` | Sobe sem recompilar (uso normal) |
+| `zerar-banco.bat` | Volta o banco aos dados de demonstração (antes de ensaiar o roteiro) |
+
+Abre uma janela preta que chama o Ubuntu sozinha. Se pedir senha, é a do seu usuário do Ubuntu. **Deixe essa janela aberta** enquanto usa o sistema; para parar, aperte Enter nela.
+
+### Jeito B — pelo terminal do Ubuntu
+
+Abra o **Ubuntu** pelo menu Iniciar (ou digite `wsl` no PowerShell; o prompt muda para algo como `joao@PC:~$`). Então:
 
 ```bash
 cd /mnt/c/Users/joao.gehlen/Desktop/MedicalField
@@ -70,7 +86,7 @@ Na primeira vez ele instala as dependências e compila os três serviços e os d
 sudo MF_BUILD=0 infra/scripts/start-all.sh
 ```
 
-Quando terminar, aparece:
+Deixe a janela do Ubuntu aberta enquanto usa o sistema. Quando terminar, aparece:
 
 ```
   Cliente (socorrista):  http://localhost:8080/app/
@@ -149,6 +165,8 @@ Depois suba de novo com `sudo MF_BUILD=0 infra/scripts/start-all.sh`.
 
 | Sintoma | Solução |
 |---|---|
+| “Este arquivo não tem um aplicativo associado” ao rodar um `.sh` | Você digitou no terminal do Windows. Use `iniciar.bat` ou abra o **Ubuntu** (item 4). |
+| `'wsl' não é reconhecido` | Falta instalar o WSL (item 1). |
 | `\r: command not found` ao rodar um script | O projeto foi clonado pelo Git do Windows. Apague a pasta e clone de novo **pelo Ubuntu** (item 3). |
 | `Nenhum cluster PostgreSQL encontrado` | `sudo apt install postgresql` |
 | `falhou — veja .runtime/logs/` | Abra o log do serviço que não subiu (`identity.log`, `clinical.log` ou `document.log`) em `.runtime/logs/`. |
