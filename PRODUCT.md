@@ -7,14 +7,14 @@
 web
 
 ## Stack
-Definido pela equipe: cliente PWA em React + TypeScript + Dexie (IndexedDB); portal em React + TypeScript; backend com clinical-service (TypeScript/NestJS), identity-service (Java/Spring Boot) e document-service (Python/FastAPI) atrás de Nginx, na VM da Univates.
+Definido pela equipe: cliente web em React + TypeScript + Bootstrap 5 + Dexie (IndexedDB); portal em React + TypeScript + Bootstrap 5; backend com clinical-service (TypeScript/NestJS), identity-service (Java/Spring Boot) e document-service (Python/FastAPI) atrás de Nginx, na VM da Univates.
 
 ## Users
 - **Socorrista, médico ou enfermeiro do atendimento pré-hospitalar** (SAMU, ambulância de rodovia, equipes de desastre). Registra a ocorrência no local, muitas vezes sem sinal, de luvas, sob estresse, com o paciente na frente. Usa tablet ou celular na ambulância.
-- **Central de regulação / administração.** No escritório, acompanha os atendimentos que chegam, consulta prontuários e cadastros de apoio e audita acessos.
+- **Central de regulação / administração.** No escritório, acompanha os atendimentos que chegam, consulta prontuários e cadastros, gera a ficha em PDF e a envia ao familiar.
 
 ## Product Purpose
-Registrar a ficha de atendimento de emergência (sinais vitais, Glasgow, triagem START/Manchester, medicamentos administrados) no momento em que acontece, mesmo sem internet, e entregá-la íntegra ao hospital e à central quando a conexão volta. Sucesso: nenhum dado perdido, nenhum erro de medicação que a regra de segurança poderia ter evitado, e a ficha em PDF disponível para paciente ou familiar.
+Registrar a ficha de atendimento de emergência (sinais vitais, Glasgow, triagem START/Manchester, medicamentos administrados) no momento em que acontece, mesmo sem internet, e entregá-la íntegra à central quando a conexão volta. Sucesso: nenhum dado perdido, nenhum erro de medicação que a regra de segurança poderia ter evitado, e a ficha em PDF disponível para paciente ou familiar.
 
 ## Positioning
 Offline-first de verdade: o dispositivo é a fonte primária do registro; a nuvem consolida. Regras de segurança clínica rodam no próprio dispositivo, sem rede.
@@ -29,14 +29,14 @@ Trabalho final da disciplina Arquiteturas de Software (Univates, 2026/B). A apre
 - Ficha em PDF e envio por e-mail com anexo.
 
 ## Brand Commitments
-Nome: MedicalField. Sem logotipo prévio. Idioma: português do Brasil, vocabulário do APH (ocorrência, ficha, triagem, regulação, viatura).
+Nome: MedicalField. Sem logotipo prévio. Idioma: português do Brasil, vocabulário do APH (ocorrência, ficha, triagem, regulação). Tema claro com fotos reais do SAMU (domínio público).
 
 ## Evidence on Hand
-Nenhum dado real de pacientes. Todos os pacientes, CPFs, telefones e e-mails do sistema são fictícios (dados de demonstração). Hospitais da região do Vale do Taquari aparecem apenas como cadastro de apoio de exemplo.
+Nenhum dado real de pacientes. Todos os pacientes, CPFs, telefones e e-mails do sistema são fictícios (dados de demonstração).
 
 ## Product Principles
 1. O registro nunca espera a rede.
-2. Segurança do paciente antes de conveniência: alerta clínico interrompe, justificativa fica registrada.
+2. Segurança do paciente antes de conveniência: a regra clínica bloqueia o medicamento perigoso.
 3. Estado sempre visível: o profissional sabe o que está só no aparelho e o que já chegou à central.
 4. Linguagem de quem está na ocorrência, não de sistema.
 

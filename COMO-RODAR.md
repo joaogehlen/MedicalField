@@ -114,11 +114,11 @@ Abra esses endereços **no navegador do Windows** (Chrome, Edge…). Eles funcio
 |---|---|
 | Subir tudo | `sudo MF_BUILD=0 infra/scripts/start-all.sh` |
 | Subir recompilando (depois de mudar o código) | `sudo infra/scripts/start-all.sh` |
+| **Atualizar o projeto** (baixar a versão nova do GitHub) | `git pull`, depois `sudo infra/scripts/reset-db.sh` e `sudo infra/scripts/start-all.sh` (ou dois cliques em `zerar-banco.bat` e `iniciar.bat`). Zere o banco sempre que a atualização mudar as tabelas. |
 | Parar tudo | `sudo infra/scripts/stop-all.sh` |
 | Zerar o banco (antes de ensaiar o roteiro) | `sudo infra/scripts/reset-db.sh` e depois subir de novo |
 | Ver os logs | pasta `.runtime/logs/` (dá para abrir pelo Windows: `Área de Trabalho\MedicalField\.runtime\logs`) |
 | Ver os e-mails enviados | pasta `.runtime/mail/` — cada e-mail é um `.eml` com o PDF anexo. Dê dois cliques para abrir no Outlook/Correio. |
-| Ver as fichas em PDF geradas | pasta `.runtime/fichas/` |
 | Abrir o código no VS Code | `code .` (com a extensão **WSL** instalada no VS Code) |
 
 ## 6. Ensaiar o roteiro da apresentação
@@ -148,7 +148,7 @@ As capturas de cada passo ficam em `.runtime/roteiro/`.
 
 1. Instale o Postman no Windows.
 2. **Import** → escolha `Área de Trabalho\MedicalField\postman\MedicalField.postman_collection.json`.
-3. Rode primeiro **Autenticação → Login (CRM)** (ou *Login (ADMIN)* para as rotas de auditoria). O token é guardado sozinho e as outras requisições já usam.
+3. Rode primeiro **Autenticação → Login (CRM)**. O token é guardado sozinho e as outras requisições já usam.
 
 ## 8. E-mail de verdade (opcional)
 

@@ -1,218 +1,98 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-09T17:53:22.484786+00:00",
+  "generatedAt": "2026-11-10T11:36:36.207547+00:00",
   "title": "Design System: MedicalField",
   "extensions": {
+    "framework": "Bootstrap 5.3.3 + Bootstrap Icons 1.11.3",
     "colorMeta": {
-      "farda": {
+      "azul": {
         "role": "primary",
-        "displayName": "Farda",
-        "tonalRamp": [
-          "#071420",
-          "#0c1f30",
-          "#10283d",
-          "#1b3b57",
-          "#2c5476",
-          "#4a7193",
-          "#8aa6bf",
-          "#dbe5ee"
-        ]
+        "displayName": "Azul hospitalar",
+        "value": "#1559a8"
       },
-      "refletivo": {
-        "role": "secondary",
-        "displayName": "Refletivo",
-        "tonalRamp": [
-          "#4d3800",
-          "#7a5900",
-          "#a87a00",
-          "#d49c00",
-          "#f2b300",
-          "#ffc93d",
-          "#ffe08a",
-          "#fff4d6"
-        ]
-      },
-      "papel": {
+      "fundo": {
         "role": "neutral",
-        "displayName": "Papel frio",
-        "tonalRamp": [
-          "#0f1b24",
-          "#2b3a45",
-          "#46555f",
-          "#5f6e78",
-          "#9aa9b4",
-          "#cfd8de",
-          "#eaeef1",
-          "#f4f6f7"
-        ]
+        "displayName": "Fundo claro",
+        "value": "#f4f7fb"
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "value": "#14263a"
+      },
+      "marca-vermelho": {
+        "role": "secondary",
+        "displayName": "Vermelho da cruz",
+        "value": "#d0263a"
       },
       "triagem-vermelho": {
         "role": "tertiary",
-        "displayName": "Triagem vermelho"
+        "displayName": "Triagem vermelho",
+        "value": "#c8102e"
       },
       "triagem-laranja": {
         "role": "tertiary",
-        "displayName": "Triagem laranja"
+        "displayName": "Triagem laranja",
+        "value": "#c2500a"
       },
       "triagem-amarelo": {
         "role": "tertiary",
-        "displayName": "Triagem amarelo"
+        "displayName": "Triagem amarelo",
+        "value": "#f2c200"
       },
       "triagem-verde": {
         "role": "tertiary",
-        "displayName": "Triagem verde"
+        "displayName": "Triagem verde",
+        "value": "#18794a"
       },
       "triagem-azul": {
         "role": "tertiary",
-        "displayName": "Triagem azul"
+        "displayName": "Triagem azul",
+        "value": "#1f5fc0"
       },
       "triagem-preto": {
         "role": "tertiary",
-        "displayName": "Triagem preto"
+        "displayName": "Triagem preto",
+        "value": "#1a1a1a"
       }
     },
     "typographyMeta": {
-      "titulo": {
-        "displayName": "Título",
-        "purpose": "Título de página."
-      },
-      "secao": {
-        "displayName": "Seção",
-        "purpose": "Título de seção sobre régua da farda."
-      },
-      "corpo": {
-        "displayName": "Corpo",
-        "purpose": "Texto corrido e valores."
-      },
-      "rotulo": {
-        "displayName": "Rótulo",
-        "purpose": "Rótulos de campo, botões e etiquetas."
+      "texto": {
+        "displayName": "Texto",
+        "family": "Atkinson Hyperlegible Next"
       },
       "medida": {
         "displayName": "Medida",
-        "purpose": "Números clínicos, horários, CPF e identificadores."
+        "family": "Atkinson Hyperlegible Mono",
+        "purpose": "Números clínicos, horários e CPF."
       }
-    },
-    "shadows": [
-      {
-        "name": "sombra-1",
-        "value": "0 1px 2px rgba(15,27,36,.08), 0 1px 1px rgba(15,27,36,.04)",
-        "purpose": "Cartões e botão primário."
-      },
-      {
-        "name": "sombra-2",
-        "value": "0 4px 12px -2px rgba(15,27,36,.14), 0 2px 4px rgba(15,27,36,.06)",
-        "purpose": "Casca e hover de cartões."
-      },
-      {
-        "name": "sombra-3",
-        "value": "0 12px 32px -6px rgba(15,27,36,.24)",
-        "purpose": "Barra de ações fixa."
-      }
-    ],
-    "motion": [
-      {
-        "name": "curva",
-        "value": "cubic-bezier(0.2, 0.8, 0.2, 1)",
-        "purpose": "Transições de estado (180 ms)."
-      },
-      {
-        "name": "faixa-refletiva",
-        "value": "height 220ms",
-        "purpose": "Entrada da faixa offline."
-      }
-    ],
-    "breakpoints": [
-      {
-        "name": "celular",
-        "value": "560px"
-      },
-      {
-        "name": "desktop",
-        "value": "900px"
-      }
-    ]
+    }
   },
   "components": [
     {
-      "name": "Botão primário",
-      "kind": "button",
-      "refersTo": "button-primary",
-      "description": "Ação principal da tela, na cor da farda.",
-      "html": "<button class=\"ds-btn-primario\">Finalizar atendimento</button>",
-      "css": ".ds-btn-primario{background:#10283d;color:#fff;border:1px solid #10283d;border-radius:6px;min-height:48px;padding:0 20px;font:700 16px 'Atkinson Hyperlegible Next',system-ui,sans-serif;box-shadow:0 1px 2px rgba(15,27,36,.08);cursor:pointer;transition:background .18s}.ds-btn-primario:hover{background:#1b3b57}.ds-btn-primario:focus-visible{outline:none;box-shadow:0 0 0 3px #ffb800,0 0 0 5px #10283d}"
+      "name": "navbar-mf",
+      "purpose": "Barra superior com marca, menu, pendentes e chave Online/Offline"
     },
     {
-      "name": "Botão secundário",
-      "kind": "button",
-      "refersTo": "button-secondary",
-      "description": "Ações de apoio.",
-      "html": "<button class=\"ds-btn\">Salvar rascunho</button>",
-      "css": ".ds-btn{background:#fff;color:#0f1b24;border:1px solid #9aa9b4;border-radius:6px;min-height:48px;padding:0 20px;font:700 16px 'Atkinson Hyperlegible Next',system-ui,sans-serif;cursor:pointer}.ds-btn:hover{background:#eaeef1}.ds-btn:focus-visible{outline:none;box-shadow:0 0 0 3px #ffb800,0 0 0 5px #10283d}"
+      "name": "triagem",
+      "purpose": "Etiqueta de classificação de risco com nome escrito"
     },
     {
-      "name": "Campo de medida",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Entrada numérica com unidade.",
-      "html": "<label class=\"ds-campo\"><span>FC</span><span class=\"ds-un\"><input value=\"112\"><i>bpm</i></span></label>",
-      "css": ".ds-campo{display:grid;gap:6px;font:700 14px 'Atkinson Hyperlegible Next',sans-serif;color:#0f1b24}.ds-un{position:relative}.ds-un input{width:100%;min-height:44px;padding:10px 52px 10px 12px;border:1px solid #9aa9b4;border-radius:6px;font:400 16px 'Atkinson Hyperlegible Mono',monospace}.ds-un input:focus-visible{outline:none;border-color:#10283d;box-shadow:0 0 0 3px #ffb800,0 0 0 5px #10283d}.ds-un i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font:400 14px sans-serif;color:#5f6e78}"
+      "name": "escolha-cor",
+      "purpose": "Botão de escolha da classificação (btn-check)"
     },
     {
-      "name": "Etiqueta de triagem",
-      "kind": "chip",
-      "refersTo": "tag-triagem",
-      "description": "Classificação com ilhós e nome escrito.",
-      "html": "<span class=\"ds-tag\" style=\"--cor:#c2500a\">Laranja · Muito urgente</span>",
-      "css": ".ds-tag{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px 0 8px;border-radius:4px 13px 13px 4px;background:var(--cor);color:#fff;font:700 12px 'Atkinson Hyperlegible Next',sans-serif}.ds-tag::before{content:'';width:8px;height:8px;border-radius:50%;background:#f4f6f7;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25)}"
+      "name": "alergias",
+      "purpose": "Faixa de alergias em destaque"
     },
     {
-      "name": "Selo de sincronização",
-      "kind": "chip",
-      "refersTo": "selo-pendente",
-      "description": "Estado do registro em relação à central.",
-      "html": "<span class=\"ds-selo\">Só no aparelho</span>",
-      "css": ".ds-selo{display:inline-flex;padding:2px 8px;border-radius:999px;background:#fff1cc;color:#8a5a00;font:700 12px 'Atkinson Hyperlegible Next',sans-serif}"
+      "name": "faixa-offline",
+      "purpose": "Faixa refletiva amarela e preta quando offline"
     },
     {
-      "name": "Casca offline",
-      "kind": "nav",
-      "refersTo": "shell",
-      "description": "Casca com a faixa refletiva quando fora da rede.",
-      "html": "<div class=\"ds-casca\"><b>✚ MedicalField</b><span class=\"ds-chave\">Offline</span></div><div class=\"ds-faixa\"></div>",
-      "css": ".ds-casca{display:flex;justify-content:space-between;align-items:center;background:#10283d;color:#fff;padding:12px 16px;font:700 18px 'Atkinson Hyperlegible Next',sans-serif}.ds-chave{background:#f2b300;color:#1a1a1a;border-radius:22px;padding:8px 14px;font-size:14px}.ds-faixa{height:12px;background:repeating-linear-gradient(-45deg,#f2b300 0 14px,#1a1a1a 14px 28px)}"
+      "name": "login-foto / banner",
+      "purpose": "Fotos do SAMU com degradê para texto legível"
     }
   ],
-  "narrative": {
-    "northStar": "Farda e viatura do APH",
-    "overview": "O sistema se parece com o mundo de quem atende: casca azul-marinho da farda, papel frio, tinta azul-noite e cores de triagem só com significado. A faixa refletiva da viatura marca o estado offline.",
-    "keyCharacteristics": [
-      "Uma família tipográfica de alta legibilidade",
-      "Medidas clínicas em mono tabular",
-      "Estado de rede e sincronização sempre visível",
-      "Triagem com cor + nome"
-    ],
-    "rules": [
-      {
-        "name": "A cor de triagem nunca está sozinha",
-        "body": "Toda etiqueta escreve o nome da classificação.",
-        "section": "colors"
-      },
-      {
-        "name": "Alergia é vermelha e grande",
-        "body": "Bloco de alergias com borda de 2 px em toda tela de medicação.",
-        "section": "colors"
-      }
-    ],
-    "dos": [
-      "Escrever o nome da classificação",
-      "Usar mono para números clínicos",
-      "Mostrar o estado de sincronização em cada registro"
-    ],
-    "donts": [
-      "Usar cor de triagem como decoração ou ação",
-      "Avisar offline com toast",
-      "Criar cartões de métrica decorativos"
-    ]
-  }
+  "narrative": "Tema claro sobre Bootstrap: cartões brancos, azul hospitalar nas ações, cores fortes só para triagem e alergias, fotos reais de ambulâncias do SAMU (domínio público)."
 }
