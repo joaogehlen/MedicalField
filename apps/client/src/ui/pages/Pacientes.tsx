@@ -1,10 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Search, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { normalizarTexto, somenteDigitos } from '@medicalfield/shared';
 import { local } from '../../data/repositories';
-import { SeloSync } from '../components/Selos';
+import { SeloSync, Vazio } from '../components';
 import { fmtCpf, idade } from '../format';
 
 export function Pacientes() {
@@ -13,48 +12,37 @@ export function Pacientes() {
   const pessoas = useLiveQuery(() => local.pessoas.listar());
   const termo = normalizarTexto(busca);
   const digitos = somenteDigitos(busca);
-  const filtradas = (pessoas ?? []).filter(
+  const lista = (pessoas ?? []).filter(
     (p) => !termo || normalizarTexto(p.nome).includes(termo) || (digitos.length >= 3 && (p.cpf ?? '').includes(digitos)),
   );
 
   return (
-    <div className="pagina">
-      <div className="pagina-cabeca">
-        <h1>Pacientes</h1>
-        <button type="button" className="btn btn-grande" onClick={() => navegar('/nova')}>
-          <UserPlus aria-hidden /> Nova vítima
-        </button>
+    <>
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 className="h3 mb-0">Pacientes</h1>
+        <button type="button" className="btn btn-primary" onClick={() => navegar('/nova')}><i className="bi bi-person-plus me-1" />Nova vítima</button>
       </div>
-      <div className="campo busca">
-        <label htmlFor="busca" className="sr-only">
-          Buscar por nome ou CPF
-        </label>
-        <Search aria-hidden />
-        <input id="busca" type="search" placeholder="Buscar por nome ou CPF" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="input-group input-group-lg mb-3">
+        <span className="input-group-text bg-white"><i className="bi bi-search" /></span>
+        <input className="form-control" type="search" placeholder="Buscar por nome ou CPF" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar paciente" />
       </div>
-      {pessoas && filtradas.length === 0 ? (
-        <div className="vazio">
-          <strong>{busca ? 'Nenhum paciente encontrado.' : 'Nenhum paciente neste aparelho.'}</strong>
-          <p>{busca ? 'Confira a grafia ou o CPF, ou registre a vítima como nova.' : 'Receba os dados da central na aba Sincronização, ou registre uma nova vítima.'}</p>
-        </div>
+      {pessoas && lista.length === 0 ? (
+        <div className="card"><Vazio icone="bi-people" titulo={busca ? 'Nenhum paciente encontrado.' : 'Nenhum paciente neste aparelho.'}>
+          <p className="mb-0">{busca ? 'Confira o nome ou o CPF.' : 'Receba os dados da central ou cadastre uma nova vítima.'}</p>
+        </Vazio></div>
       ) : (
-        <ul className="lista-ocorrencias">
-          {filtradas.map((p) => (
-            <li key={p.id}>
-              <Link to={`/paciente/${p.id}`} className="ocorrencia">
-                <div className="ocorrencia-texto">
-                  <strong>{p.nome}</strong>
-                  <span className="mono">{p.identificada ? fmtCpf(p.cpf) : 'Não identificado'}{idade(p.dataNascimento) ? ` · ${idade(p.dataNascimento)}` : ''}</span>
-                </div>
-                <div className="ocorrencia-meta">
-                  <SeloSync status={p.syncStatus} erro={p.syncErro} />
-                </div>
-                <ChevronRight aria-hidden className="seta" />
-              </Link>
-            </li>
+        <div className="list-group shadow-sm">
+          {lista.map((p) => (
+            <Link key={p.id} to={`/paciente/${p.id}`} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2 py-3">
+              <div>
+                <div className="fw-bold">{p.nome}</div>
+                <div className="small text-secondary font-monospace">{fmtCpf(p.cpf)}{idade(p.dataNascimento) ? ` · ${idade(p.dataNascimento)}` : ''}</div>
+              </div>
+              <SeloSync status={p.syncStatus} offline={p.criadoOffline} />
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
-    </div>
+    </>
   );
 }

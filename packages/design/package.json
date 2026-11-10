@@ -2,11 +2,16 @@
   "name": "@medicalfield/design",
   "version": "1.0.0",
   "private": true,
-  "description": "Tokens, fontes e componentes CSS compartilhados pelo cliente e pelo portal.",
+  "description": "Tema claro (Bootstrap 5.3), fontes e fotos compartilhados pelo cliente e pelo portal.",
   "main": "index.css",
-  "files": ["*.css"],
+  "files": [
+    "*.css",
+    "img"
+  ],
   "dependencies": {
     "@fontsource/atkinson-hyperlegible-mono": "^5.2.0",
-    "@fontsource/atkinson-hyperlegible-next": "^5.2.0"
+    "@fontsource/atkinson-hyperlegible-next": "^5.2.0",
+    "bootstrap": "^5.3.3",
+    "bootstrap-icons": "^1.11.3"
   }
 }

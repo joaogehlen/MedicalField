@@ -1,13 +1,13 @@
 /**
- * Cliente HTTP do dispositivo. Respeita o simulador de rede: com a chave em Offline
- * nenhuma requisição sai do aparelho (falha imediata, sem esperar timeout).
+ * Cliente HTTP do aparelho. Respeita o simulador de rede: com a chave em Offline
+ * nenhuma requisição sai do aparelho.
  */
 import { v7 as uuidv7 } from 'uuid';
-import type { LoginResponse, Problem } from '@medicalfield/shared';
-import { atualizarRefreshDaCredencial, sessao } from '../auth/session';
+import type { Problem } from '@medicalfield/shared';
+import { sessao } from '../auth/session';
 import { network } from '../sync/network';
 
-export class NetworkUnavailableError extends Error {
+export class SemConexaoError extends Error {
   constructor() {
     super('Sem conexão com a central.');
   }
@@ -15,111 +15,41 @@ export class NetworkUnavailableError extends Error {
 
 export class ApiError extends Error {
   constructor(readonly status: number, readonly problem: Problem | null) {
-    super(problem?.detail ?? problem?.title ?? `Erro ${status}`);
-  }
-  get codigo() {
-    return this.problem?.codigo ?? 'ERRO';
-  }
-}
-
-export class SessaoExpiradaError extends Error {
-  constructor() {
-    super('Sessão expirada: entre novamente com conexão para sincronizar.');
+    super(
+      problem?.detail ??
+        (status >= 502 && status <= 504 ? `Serviço da central fora do ar (erro ${status}).` : `Erro ${status}.`),
+    );
   }
 }
 
-export interface Opcoes {
-  idempotencyKey?: string;
-  semAuth?: boolean;
-  blob?: boolean;
-}
+export async function api<T>(metodo: string, rota: string, corpo?: unknown, idempotencyKey?: string): Promise<T> {
+  if (!network.isOnline()) throw new SemConexaoError();
+  const headers: Record<string, string> = {};
+  if (corpo !== undefined) headers['Content-Type'] = 'application/json';
+  const token = sessao.get()?.token;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
 
-const BASE = `${import.meta.env.BASE_URL.replace(/\/app\/$/, '')}/api`;
-
-let renovando: Promise<boolean> | null = null;
-
-/** Renova o access token com o refresh token (rotação). */
-export function renovarToken(): Promise<boolean> {
-  renovando ??= (async () => {
-    const s = sessao.get();
-    if (!s?.refreshToken || !network.isOnline()) return false;
-    try {
-      const r = await fetch(`${BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: s.refreshToken, dispositivoId: dispositivoId() }),
-      });
-      if (!r.ok) return false;
-      const dados = (await r.json()) as LoginResponse;
-      sessao.aplicarLogin(dados);
-      await atualizarRefreshDaCredencial(dados.profissional.id, dados.refreshToken);
-      return true;
-    } catch {
-      return false;
-    } finally {
-      setTimeout(() => (renovando = null), 0);
-    }
-  })();
-  return renovando;
-}
-
-async function tokenValido(): Promise<string> {
-  const s = sessao.get();
-  if (s?.accessToken && s.expiraEm && s.expiraEm - Date.now() > 30_000) return s.accessToken;
-  if (await renovarToken()) return sessao.get()!.accessToken!;
-  throw new SessaoExpiradaError();
-}
-
-export async function api<T>(metodo: string, rota: string, corpo?: unknown, opts: Opcoes = {}): Promise<T> {
-  if (!network.isOnline()) throw new NetworkUnavailableError();
-  const enviar = async (token: string | null) => {
-    const headers: Record<string, string> = { 'X-Client-Time': new Date().toISOString() };
-    if (corpo !== undefined) headers['Content-Type'] = 'application/json';
-    if (token) headers.Authorization = `Bearer ${token}`;
-    if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
-    try {
-      return await fetch(`${BASE}${rota}`, { method: metodo, headers, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
-    } catch {
-      throw new NetworkUnavailableError();
-    }
-  };
-
-  let resposta = await enviar(opts.semAuth ? null : await tokenValido());
-  if (resposta.status === 401 && !opts.semAuth) {
-    if (!(await renovarToken())) throw new SessaoExpiradaError();
-    resposta = await enviar(sessao.get()!.accessToken);
-  }
-  if ([502, 503, 504].includes(resposta.status) && !(resposta.headers.get('content-type') ?? '').includes('json')) {
-    // O gateway respondeu, mas o serviço por trás dele está fora do ar.
-    throw new ApiError(resposta.status, {
-      title: 'Central indisponível',
-      status: resposta.status,
-      codigo: 'SERVICO_INDISPONIVEL',
-      detail: `O servidor respondeu, mas o serviço desta função não está no ar (erro ${resposta.status}). Confira se todos os serviços subiram.`,
-    });
-  }
-  if (!resposta.ok) {
-    let problem: Problem | null = null;
-    try {
-      problem = (await resposta.json()) as Problem;
-    } catch {
-      /* corpo não-JSON */
-    }
-    throw new ApiError(resposta.status, problem);
-  }
-  if (opts.blob) return (await resposta.blob()) as T;
-  if (resposta.status === 204) return undefined as T;
-  return (await resposta.json()) as T;
-}
-
-/** Identificador estável deste aparelho (vai em todo registro e log). */
-export function dispositivoId(): string {
-  const CHAVE = 'mf.dispositivoId';
+  let r: Response;
   try {
-    let id = localStorage.getItem(CHAVE);
+    r = await fetch(`/api${rota}`, { method: metodo, headers, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
+  } catch {
+    throw new SemConexaoError();
+  }
+  if (!r.ok) {
+    const problem = (r.headers.get('content-type') ?? '').includes('json') ? ((await r.json()) as Problem) : null;
+    throw new ApiError(r.status, problem);
+  }
+  return (await r.json()) as T;
+}
+
+/** Identificador deste aparelho (vai em todo registro). */
+export function dispositivoId(): string {
+  try {
+    let id = localStorage.getItem('mf.dispositivoId');
     if (!id) {
       id = `dev-${uuidv7().slice(-12)}`;
-      localStorage.setItem(CHAVE, id);
+      localStorage.setItem('mf.dispositivoId', id);
     }
     return id;
   } catch {

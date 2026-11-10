@@ -1,0 +1,143 @@
+/*
+ * MedicalField — tema claro sobre Bootstrap 5.3.
+ * Azul hospitalar para ações, vermelho SAMU só na marca, cores de triagem só com
+ * significado (sempre com o nome escrito).
+ */
+:root {
+  --mf-azul: #1559a8;
+  --mf-azul-hover: #114a8c;
+  --mf-azul-claro: #eaf2fb;
+  --mf-tinta: #14263a;
+  --mf-tinta-2: #51606f;
+  --mf-titulo: #0e2a47;
+  --mf-vermelho: #d0263a;
+  --mf-fundo: #f4f7fb;
+  --mf-borda: #dfe6ee;
+
+  --t-vermelho: #c8102e;
+  --t-laranja: #c2500a;
+  --t-amarelo: #f2c200;
+  --t-verde: #18794a;
+  --t-azul: #1f5fc0;
+  --t-preto: #1a1a1a;
+
+  --bs-font-sans-serif: 'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --bs-font-monospace: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+  --bs-body-bg: var(--mf-fundo);
+  --bs-body-color: var(--mf-tinta);
+  --bs-secondary-color: var(--mf-tinta-2);
+  --bs-border-color: var(--mf-borda);
+  --bs-primary: var(--mf-azul);
+  --bs-primary-rgb: 21, 89, 168;
+  --bs-link-color: var(--mf-azul);
+  --bs-link-color-rgb: 21, 89, 168;
+  --bs-link-hover-color: var(--mf-azul-hover);
+  --bs-border-radius: 0.6rem;
+  --bs-border-radius-lg: 0.9rem;
+  --bs-focus-ring-color: rgba(21, 89, 168, 0.3);
+  color-scheme: light;
+}
+
+body { -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4, h5, .h1, .h2, .h3, .h4, .h5 { color: var(--mf-titulo); font-weight: 700; letter-spacing: -0.01em; }
+::selection { background: #cfe2f7; }
+.mono, .font-monospace { font-variant-numeric: tabular-nums; }
+
+/* Botões e formulários */
+.btn { font-weight: 700; }
+.btn-primary {
+  --bs-btn-bg: var(--mf-azul);
+  --bs-btn-border-color: var(--mf-azul);
+  --bs-btn-hover-bg: var(--mf-azul-hover);
+  --bs-btn-hover-border-color: var(--mf-azul-hover);
+  --bs-btn-active-bg: #0e3e76;
+  --bs-btn-active-border-color: #0e3e76;
+  --bs-btn-disabled-bg: var(--mf-azul);
+  --bs-btn-disabled-border-color: var(--mf-azul);
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--mf-azul);
+  --bs-btn-border-color: var(--mf-azul);
+  --bs-btn-hover-bg: var(--mf-azul);
+  --bs-btn-hover-border-color: var(--mf-azul);
+  --bs-btn-active-bg: var(--mf-azul);
+}
+.form-label { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.3rem; }
+.form-control, .form-select { border-color: #c9d4df; }
+.form-control:focus, .form-select:focus { border-color: var(--mf-azul); }
+.form-check-input:checked { background-color: var(--mf-azul); border-color: var(--mf-azul); }
+
+/* Superfícies */
+.card { border-color: var(--mf-borda); box-shadow: 0 1px 2px rgba(20, 38, 58, 0.04); }
+.card-header { background: #fff; font-weight: 700; color: var(--mf-titulo); border-bottom-color: var(--mf-borda); }
+.card-link-hover { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+.card-link-hover:hover { box-shadow: 0 6px 18px rgba(20, 38, 58, 0.1); transform: translateY(-1px); }
+.table > :not(caption) > * > * { padding: 0.7rem 0.85rem; }
+.table thead th { font-size: 0.78rem; color: var(--mf-tinta-2); font-weight: 700; background: #f8fafc; }
+.table-hover > tbody > tr { cursor: pointer; }
+
+/* Marca */
+.marca { display: inline-flex; align-items: center; gap: 0.55rem; font-weight: 700; font-size: 1.2rem; color: var(--mf-titulo); text-decoration: none; }
+.marca-cruz { width: 30px; height: 30px; flex: none; }
+
+/* Navbar clara */
+.navbar-mf { background: #fff; border-bottom: 1px solid var(--mf-borda); }
+.navbar-mf .nav-link { font-weight: 700; color: var(--mf-tinta-2); border-radius: 0.5rem; padding: 0.5rem 0.85rem !important; }
+.navbar-mf .nav-link:hover { color: var(--mf-titulo); background: var(--mf-fundo); }
+.navbar-mf .nav-link.active { color: var(--mf-azul); background: var(--mf-azul-claro); }
+
+/* Etiqueta de triagem: cor + nome */
+.triagem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.55rem;
+  border-radius: 999px;
+  background: var(--cor, #6c757d);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.triagem::before { content: ''; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: rgba(255, 255, 255, 0.85); }
+[data-cor='VERMELHO'] { --cor: var(--t-vermelho); }
+[data-cor='LARANJA'] { --cor: var(--t-laranja); }
+[data-cor='AMARELO'] { --cor: var(--t-amarelo); }
+[data-cor='VERDE'] { --cor: var(--t-verde); }
+[data-cor='AZUL'] { --cor: var(--t-azul); }
+[data-cor='PRETO'] { --cor: var(--t-preto); }
+.triagem[data-cor='AMARELO'] { color: #1a1a1a; }
+.triagem[data-cor='AMARELO']::before { background: rgba(0, 0, 0, 0.35); }
+
+/* Escolha da classificação: <input class="btn-check"> + <label class="btn escolha-cor" data-cor> */
+.btn.escolha-cor { border: 2px solid var(--cor); border-left-width: 10px; color: var(--mf-tinta); background: #fff; text-align: left; min-width: 9.5rem; line-height: 1.25; }
+.btn.escolha-cor small { font-weight: 400; color: var(--mf-tinta-2); }
+.btn.escolha-cor:hover { background: var(--mf-fundo); border-color: var(--cor); }
+.btn-check:checked + .btn.escolha-cor { background: var(--cor); border-color: var(--cor); color: #fff; }
+.btn-check:checked + .btn.escolha-cor small { color: rgba(255, 255, 255, 0.9); }
+.btn-check:checked + .btn.escolha-cor[data-cor='AMARELO'],
+.btn-check:checked + .btn.escolha-cor[data-cor='AMARELO'] small { color: #1a1a1a; }
+
+/* Alergias sempre em destaque */
+.alergias { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1rem; border-radius: var(--bs-border-radius); background: #fdebee; color: #9b1426; font-weight: 700; }
+
+/* Assinatura: faixa refletiva da viatura quando fora da rede */
+.faixa-offline { height: 10px; background: repeating-linear-gradient(-45deg, #f2b300 0 14px, #1a1a1a 14px 28px); }
+.badge-offline { background: #fff1c2; color: #6b4b00; }
+
+/* Imagens */
+.foto-cover { object-fit: cover; width: 100%; height: 100%; }
+.login-foto { position: relative; min-height: 220px; background: #0e2a47; overflow: hidden; }
+.login-foto img { position: absolute; inset: 0; }
+.login-foto::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14, 42, 71, 0.15) 0%, rgba(14, 42, 71, 0.85) 100%); }
+.login-foto .legenda { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: 2rem; color: #fff; }
+.login-foto .legenda h1 { color: #fff; }
+.credito { font-size: 0.7rem; opacity: 0.75; }
+.banner { position: relative; overflow: hidden; border-radius: var(--bs-border-radius-lg); background: var(--mf-titulo); color: #fff; }
+.banner img { position: absolute; inset: 0; opacity: 0.45; }
+.banner .conteudo { position: relative; padding: 1.6rem 1.75rem; }
+.banner h1, .banner h2 { color: #fff; }
+
+/* Estado vazio */
+.vazio { text-align: center; padding: 2.5rem 1rem; color: var(--mf-tinta-2); }
+.vazio .bi { font-size: 2.2rem; color: #9fb1c4; }

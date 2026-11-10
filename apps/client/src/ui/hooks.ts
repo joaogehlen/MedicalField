@@ -1,25 +1,16 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { sessao } from '../auth/session';
 import { db } from '../data/db';
 import { syncEngine, type EstadoSync } from '../sync/engine';
 import { network } from '../sync/network';
 
-export function useSessao() {
-  return useSyncExternalStore(sessao.subscribe, sessao.get);
-}
+export const useSessao = () => useSyncExternalStore(sessao.subscribe, sessao.get);
 
-export interface EstadoRede {
-  online: boolean;
-  simulador: boolean;
-  redeReal: boolean;
-}
-
-const lerRede = (): EstadoRede => ({ online: network.isOnline(), simulador: network.simulador, redeReal: network.redeReal });
-
-export function useRede(): EstadoRede {
-  const [estado, setEstado] = useState(lerRede);
-  useEffect(() => network.subscribe({ onNetworkChange: () => setEstado(lerRede()) }), []);
+export function useRede() {
+  const ler = () => ({ online: network.isOnline(), simulador: network.simulador });
+  const [estado, setEstado] = useState(ler);
+  useEffect(() => network.subscribe({ onNetworkChange: () => setEstado(ler()) }), []);
   return estado;
 }
 
@@ -29,12 +20,5 @@ export function useSync(): EstadoSync {
   return estado;
 }
 
-/** Operações ainda não confirmadas pela central. */
-export function usePendentes() {
-  return (
-    useLiveQuery(async () => {
-      const ops = await db.outbox.where('status').anyOf('PENDENTE', 'ENVIANDO', 'ERRO').toArray();
-      return { total: ops.length, erros: ops.filter((o) => o.status === 'ERRO').length };
-    }) ?? { total: 0, erros: 0 }
-  );
-}
+/** Quantas operações ainda não chegaram à central. */
+export const usePendentes = () => useLiveQuery(() => db.outbox.where('status').equals('PENDENTE').count()) ?? 0;

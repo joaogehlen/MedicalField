@@ -1,134 +1,89 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, RotateCcw, Trash2, Upload } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { sessao } from '../../auth/session';
 import { db } from '../../data/db';
 import { syncEngine } from '../../sync/engine';
-import { ChaveRede } from '../components/Casca';
-import { fmtDataHora, relativo } from '../format';
-import { usePendentes, useRede, useSync } from '../hooks';
+import { Vazio } from '../components';
+import { relativo } from '../format';
+import { ChaveRede } from '../Layout';
+import { useRede, useSync } from '../hooks';
 
-const ROTULO_OP = { UPSERT_PESSOA: 'Vítima', UPSERT_PRONTUARIO: 'Prontuário', UPSERT_ATENDIMENTO: 'Atendimento' } as const;
-const ROTULO_STATUS = { PENDENTE: 'Aguardando conexão', ENVIANDO: 'Enviando', ERRO: 'Recusado', CONCLUIDO: 'Na central' } as const;
+const TIPO = { PESSOA: 'Paciente', PRONTUARIO: 'Prontuário', ATENDIMENTO: 'Atendimento' } as const;
 
 export function Sincronizacao() {
   const rede = useRede();
   const sync = useSync();
-  const pend = usePendentes();
-  const navegar = useNavigate();
-  const [limpando, setLimpando] = useState(false);
-  const dados = useLiveQuery(async () => ({
-    ops: await db.outbox.reverse().limit(30).toArray(),
-    logs: await db.logsLocais.where('enviado').equals(0).count(),
-    medicamentos: await db.medicamentos.count(),
-    pessoas: await db.pessoas.count(),
-    atendimentos: await db.atendimentos.count(),
-    cursor: await db.lerMeta<number>('syncCursor', 0),
+  const ops = useLiveQuery(() => db.outbox.where('status').anyOf('PENDENTE', 'ERRO').sortBy('seq'));
+  const qtd = useLiveQuery(async () => ({
+    pacientes: await db.pessoas.count(), atendimentos: await db.atendimentos.count(), medicamentos: await db.medicamentos.count(),
   }));
 
-  async function limpar() {
-    const msg = pend.total
-      ? `Há ${pend.total} registro(s) que não chegaram à central e serão PERDIDOS. Apagar todos os dados deste aparelho?`
-      : 'Apagar todos os dados deste aparelho? Os registros já estão na central.';
-    if (!window.confirm(msg)) return;
-    setLimpando(true);
-    await Promise.all(db.tables.map((t) => t.clear()));
-    sessao.definir(null);
-    navegar('/entrar');
-  }
-
   return (
-    <div className="pagina">
-      <h1>Sincronização</h1>
-
-      <section className="painel bloco estado-rede" data-online={rede.online}>
-        <div>
-          <h2>{rede.online ? 'Conectado à central' : 'Fora da rede'}</h2>
-          <p className="nota">
-            {rede.online
-              ? 'Cada registro sai do aparelho assim que é salvo.'
-              : !rede.simulador
-                ? 'Conexão desligada pelo simulador. Registre normalmente: tudo vai para a fila e é enviado quando você religar.'
-                : 'O aparelho está sem rede. Os registros ficam na fila até o sinal voltar.'}
-          </p>
+    <div className="mx-auto" style={{ maxWidth: 900 }}>
+      <h1 className="h3 mb-3">Sincronização</h1>
+      <div className="row g-3 mb-4">
+        <div className="col-md-4">
+          <div className="card h-100"><div className="card-body">
+            <div className="small text-secondary mb-2">Simulador de conectividade</div>
+            <ChaveRede />
+            <p className="small text-secondary mt-2 mb-0">Desligue para testar o modo offline.</p>
+          </div></div>
         </div>
-        <ChaveRede />
-      </section>
-
-      {sync.precisaLogin && (
-        <div className="alerta alerta-aviso" role="alert">
-          <span aria-hidden>!</span>
-          <div>
-            <strong>Entre novamente para enviar</strong>
-            <p>Sua sessão expirou durante o plantão. Os registros continuam guardados; entre com conexão para enviá-los.</p>
-            <button type="button" className="btn" onClick={() => { sessao.definir(null); navegar('/entrar'); }}>Entrar novamente</button>
-          </div>
+        <div className="col-6 col-md-4">
+          <div className="card h-100"><div className="card-body">
+            <div className="small text-secondary">Último envio</div>
+            <div className="fs-5 fw-bold">{sync.ultimoEnvio ? relativo(sync.ultimoEnvio) : 'Nunca'}</div>
+            <button type="button" className="btn btn-primary mt-2" disabled={!rede.online || sync.ocupado} onClick={() => void syncEngine.enviar()}>
+              <i className="bi bi-cloud-upload me-1" />Enviar
+            </button>
+          </div></div>
         </div>
-      )}
-      {sync.erro && !sync.precisaLogin && <div className="alerta alerta-erro" role="alert"><span aria-hidden>!</span><p>{sync.erro}</p></div>}
-
-      <div className="grade-2 cartoes-sync">
-        <section className="painel bloco">
-          <h2>Enviar para a central</h2>
-          <p className="numero-grande mono">{pend.total}</p>
-          <p className="nota">{pend.total === 1 ? 'operação pendente' : 'operações pendentes'} · {dados?.logs ?? 0} logs locais · último envio {relativo(sync.ultimaSync)}</p>
-          <button type="button" className="btn btn-grande" onClick={() => void syncEngine.push()} disabled={!rede.online || sync.sincronizando} data-carregando={sync.fase === 'ENVIANDO'}>
-            <Upload aria-hidden /> Enviar agora
-          </button>
-        </section>
-        <section className="painel bloco">
-          <h2>Receber da central</h2>
-          <p className="numero-grande mono">{dados?.medicamentos ?? 0}</p>
-          <p className="nota">medicamentos · {dados?.pessoas ?? 0} pacientes · {dados?.atendimentos ?? 0} atendimentos · recebido {relativo(sync.ultimoRecebimento)}</p>
-          <button type="button" className="btn btn-primario btn-grande" onClick={() => void syncEngine.pull()} disabled={!rede.online || sync.sincronizando} data-carregando={sync.fase === 'RECEBENDO'}>
-            <Download aria-hidden /> Receber dados da central
-          </button>
-        </section>
+        <div className="col-6 col-md-4">
+          <div className="card h-100"><div className="card-body">
+            <div className="small text-secondary">Último recebimento</div>
+            <div className="fs-5 fw-bold">{sync.ultimoRecebimento ? relativo(sync.ultimoRecebimento) : 'Nunca'}</div>
+            <button type="button" className="btn btn-outline-primary mt-2" disabled={!rede.online || sync.ocupado} onClick={() => void syncEngine.receber()}>
+              <i className="bi bi-cloud-download me-1" />Receber
+            </button>
+          </div></div>
+        </div>
       </div>
 
-      <section>
-        <h2 className="grupo-titulo">Fila de envio (Outbox)</h2>
-        {!dados || dados.ops.length === 0 ? (
-          <p className="nota">Nada foi registrado neste aparelho ainda.</p>
-        ) : (
-          <div className="tabela-rolagem">
-            <table className="tabela">
-              <thead><tr><th>Criada</th><th>Registro</th><th>Situação</th><th className="num">Tentativas</th><th><span className="sr-only">Ações</span></th></tr></thead>
+      <h2 className="h5">Dados neste aparelho</h2>
+      <div className="row g-3 mb-4 text-center">
+        {([['pacientes', 'Pacientes', 'bi-people'], ['atendimentos', 'Atendimentos', 'bi-clipboard2-pulse'], ['medicamentos', 'Medicamentos', 'bi-capsule']] as const).map(([k, rotulo, icone]) => (
+          <div key={k} className="col-4">
+            <div className="card"><div className="card-body py-3">
+              <i className={`bi ${icone} text-primary`} />
+              <div className="fs-3 fw-bold font-monospace" id={`qtd-${k}`}>{qtd?.[k] ?? '—'}</div>
+              <div className="small text-secondary">{rotulo}</div>
+            </div></div>
+          </div>
+        ))}
+      </div>
+
+      {sync.erro && <div className="alert alert-danger"><i className="bi bi-x-octagon me-1" />{sync.erro}</div>}
+
+      <h2 className="h5">Aguardando envio</h2>
+      {ops && ops.length === 0 ? (
+        <div className="card"><Vazio icone="bi-cloud-check" titulo="Tudo enviado para a central." /></div>
+      ) : (
+        <div className="card">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light"><tr><th>#</th><th>Registro</th><th>Criado</th><th>Situação</th></tr></thead>
               <tbody>
-                {dados.ops.map((o) => (
+                {(ops ?? []).map((o) => (
                   <tr key={o.seq}>
-                    <td className="mono">{fmtDataHora(o.criadoEm)}</td>
-                    <td>{ROTULO_OP[o.tipo]} <span className="fraco mono">{o.entidadeId.slice(-8)}</span></td>
-                    <td>
-                      <span className={`selo ${o.status === 'CONCLUIDO' ? 'selo-ok' : o.status === 'ERRO' ? 'selo-erro' : 'selo-pendente'}`}>{ROTULO_STATUS[o.status]}</span>
-                      {o.ultimoErro && o.status !== 'CONCLUIDO' && <div className="fraco">{o.ultimoErro}</div>}
-                    </td>
-                    <td className="num mono">{o.tentativas}</td>
-                    <td>
-                      {o.status === 'ERRO' && (
-                        <div className="acoes-linha">
-                          <button type="button" className="btn btn-fantasma" onClick={() => void syncEngine.tentarNovamente(o.seq!)}><RotateCcw aria-hidden /> Reenviar</button>
-                          <button type="button" className="btn btn-fantasma" onClick={() => void syncEngine.descartar(o.seq!)}>Descartar</button>
-                        </div>
-                      )}
-                    </td>
+                    <td className="font-monospace">{o.seq}</td>
+                    <td>{TIPO[o.tipo]}</td>
+                    <td className="small">{relativo(o.criadoEm)}</td>
+                    <td>{o.status === 'ERRO' ? <span className="badge text-bg-danger" title={o.erro ?? ''}>Recusado: {o.erro}</span> : <span className="badge text-bg-warning">Pendente</span>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-        <p className="nota mono">Cursor de recebimento: {dados?.cursor ?? 0}</p>
-      </section>
-
-      <section className="zona-perigo">
-        <h2>Limpar este aparelho</h2>
-        <p className="nota">Apaga pacientes, atendimentos, catálogo e credenciais guardados aqui. Use ao devolver o aparelho à base.</p>
-        <button type="button" className="btn btn-perigo" onClick={() => void limpar()} data-carregando={limpando}>
-          <Trash2 aria-hidden /> Limpar dados locais
-        </button>
-      </section>
+        </div>
+      )}
     </div>
   );
 }

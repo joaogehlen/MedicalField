@@ -49,21 +49,44 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || undefined,
   args: ['--disable-background-networking', '--disable-component-update'],
 });
-const contexto = (vp) => browser.newContext({ viewport: vp, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', acceptDownloads: true });
+const contexto = (vp) => browser.newContext({ viewport: vp, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
 const portal = await (await contexto({ width: 1440, height: 900 })).newPage();
 const cliente = await (await contexto({ width: 430, height: 932 })).newPage();
 const foto = (p, nome) => p.screenshot({ path: join(CAPTURAS, `${nome}.png`), fullPage: true });
-const irPortal = async (aba) => {
-  await portal.click(`.barra-nav a:has-text("${aba}")`);
+/** Abre uma página do portal (recarrega os dados da central). */
+const irPortal = async (rota) => {
+  await portal.goto(`${URL_BASE}/portal/${rota}`);
   await portal.waitForLoadState('networkidle');
 };
-const irCliente = (t) => cliente.locator('a:visible', { hasText: t }).first().click();
-const linhasTabela = () => portal.locator('.tabela tbody tr').count();
-const textoTabela = () => portal.locator('.tabela tbody').innerText();
+const irCliente = (t) => cliente.locator('.navbar-mf a', { hasText: t }).first().click();
+const linhasTabela = () => portal.locator('table tbody tr').count();
+const textoTabela = () => portal.locator('table tbody').innerText();
+const qtdNoAparelho = async (k) => Number(await cliente.locator(`#qtd-${k}`).innerText());
+const pendentes = () => cliente.locator('.navbar-mf button.rounded-pill').innerText();
 const NOVA_VITIMA = 'Carlos Eduardo Ramos';
 
 let atendimentosAntes = 0;
 let medicamentosAntes = 0;
+
+async function escolherMedicamento(nome, dose, via) {
+  const valor = await cliente.locator('#med option', { hasText: nome }).first().getAttribute('value');
+  await cliente.selectOption('#med', valor);
+  await cliente.fill('#dose', dose);
+  await cliente.selectOption('#via', via);
+  await cliente.locator('button', { hasText: /^Adicionar$/ }).click();
+}
+
+async function preencherAtendimento(d) {
+  await cliente.waitForSelector('#queixa');
+  await cliente.fill('#local', d.local);
+  await cliente.fill('#queixa', d.queixa);
+  if (d.protocolo) await cliente.locator('button', { hasText: d.protocolo }).click();
+  await cliente.click(`label[for=cl-${d.cor}]`);
+  await cliente.fill('#v-paSistolica', d.pa[0]);
+  await cliente.fill('#v-paDiastolica', d.pa[1]);
+  await cliente.fill('#v-fc', d.fc);
+  await cliente.fill('#v-spo2', d.spo2);
+}
 
 try {
   await passo(1, 'Portal: autenticar', async () => {
@@ -71,29 +94,29 @@ try {
     await portal.fill('#numero', '0001');
     await portal.fill('#senha', SENHA);
     await portal.click('button[type=submit]');
-    await portal.waitForSelector('.barra-nav');
+    await portal.waitForSelector('.navbar-mf');
     await foto(portal, '01-portal-login');
     return 'Central de Regulação (ADMIN)';
   });
 
   await passo(2, 'Portal: listar cadastros', async () => {
-    await irPortal('Cadastros');
-    await portal.waitForSelector('.tabela tbody tr');
+    await irPortal('cadastros');
+    await portal.waitForSelector('table tbody tr');
     medicamentosAntes = await linhasTabela();
     await foto(portal, '02-portal-cadastros');
     return `${medicamentosAntes} medicamentos`;
   });
 
   await passo(3, 'Portal: listar prontuários', async () => {
-    await irPortal('Prontuários');
-    await portal.waitForSelector('.tabela tbody tr');
+    await irPortal('prontuarios');
+    await portal.waitForSelector('table tbody tr');
     await foto(portal, '03-portal-prontuarios');
     return `${await linhasTabela()} prontuários`;
   });
 
   await passo(4, 'Portal: listar atendimentos', async () => {
-    await irPortal('Atendimentos');
-    await portal.waitForSelector('.tabela tbody tr');
+    await irPortal('atendimentos');
+    await portal.waitForSelector('table tbody tr');
     atendimentosAntes = await linhasTabela();
     await foto(portal, '04-portal-atendimentos');
     return `${atendimentosAntes} atendimentos`;
@@ -105,64 +128,38 @@ try {
     await cliente.fill('#numero', '12345');
     await cliente.fill('#senha', SENHA);
     await cliente.click('button[type=submit]');
-    await cliente.waitForSelector('.casca .chave-rede');
+    await cliente.waitForSelector('.navbar-mf #chave-rede');
     await foto(cliente, '05-cliente-login');
     return 'Dra. Ana Souza (CRM 12345/RS)';
   });
 
   await passo(6, 'Cliente: sincronizar dados a partir do portal (receber)', async () => {
-    await irCliente('Sincronização');
-    await cliente.click('text=Receber dados da central');
-    await cliente.waitForSelector('text=recebido agora');
-    const meds = await cliente.locator('.numero-grande').nth(1).innerText();
-    esperar(Number(meds) === medicamentosAntes, `esperava ${medicamentosAntes} medicamentos, recebeu ${meds}`);
+    await irCliente('Sincronizar');
+    await cliente.locator('button', { hasText: /^Receber$/ }).click();
+    await cliente.waitForFunction((n) => document.querySelector('#qtd-medicamentos')?.textContent === String(n), medicamentosAntes);
     await foto(cliente, '06-cliente-recebido');
-    return `${meds} medicamentos no aparelho`;
+    return `${await qtdNoAparelho('medicamentos')} medicamentos e ${await qtdNoAparelho('pacientes')} pacientes no aparelho`;
   });
-
-  async function preencherAtendimento(d) {
-    await cliente.waitForSelector('#queixa');
-    await cliente.fill('#local', d.local);
-    await cliente.fill('#queixa', d.queixa);
-    if (d.protocolo) await cliente.locator('label.segmento', { hasText: d.protocolo }).click();
-    await cliente.locator('.escolha-triagem label', { hasText: d.cor }).click();
-    const gs = cliente.locator('fieldset.glasgow');
-    for (let i = 0; i < 3; i++) await gs.nth(i).locator('label', { hasText: d.glasgow[i] }).first().click();
-    await cliente.fill('#v-paSistolica', d.pa[0]);
-    await cliente.fill('#v-paDiastolica', d.pa[1]);
-    await cliente.fill('#v-fc', d.fc);
-    await cliente.fill('#v-spo2', d.spo2);
-    await cliente.click('text=Registrar aferição');
-  }
-  async function administrar(rotulo, dose, via) {
-    await cliente.selectOption('#m-med', { label: rotulo });
-    await cliente.fill('#m-dose', dose);
-    if (via) await cliente.selectOption('#m-via', via);
-  }
 
   await passo(7, 'Cliente: online — registrar um atendimento', async () => {
     await irCliente('Pacientes');
-    await cliente.locator('.ocorrencia', { hasText: 'João Pedro' }).click();
+    await cliente.locator('.list-group-item', { hasText: 'João Pedro' }).click();
     await cliente.click('text=Novo atendimento');
-    await preencherAtendimento({ local: 'RS-130, km 72 — Lajeado', queixa: 'Dor lombar após queda da própria altura', cor: 'Verde', glasgow: ['Espontânea', 'Orientado', 'Obedece'], pa: ['138', '88'], fc: '88', spo2: '98' });
-    await administrar('Ondansetrona — Ampola 2 mg/mL · 4 mL', '4', 'IV');
-    await cliente.click('text=Registrar administração');
-    await cliente.click('text=Finalizar atendimento');
-    await cliente.waitForSelector('.selo-ok', { timeout: 15000 });
+    await preencherAtendimento({ local: 'RS-130, km 72 — Lajeado', queixa: 'Dor lombar após queda da própria altura', cor: 'VERDE', pa: ['138', '88'], fc: '88', spo2: '98' });
+    await escolherMedicamento('Ondansetrona', '4', 'IV');
+    await cliente.click('text=Salvar atendimento');
+    await cliente.waitForSelector('text=Na central', { timeout: 15000 });
     await foto(cliente, '07-cliente-online');
     return 'enviado na hora (selo "Na central")';
   });
 
   await passo(8, 'Portal: listar atendimentos — visualizar o registrado', async () => {
-    await irPortal('Atendimentos');
-    await portal.click('text=Atualizar');
-    await portal.waitForFunction((n) => document.querySelectorAll('.tabela tbody tr').length > n, atendimentosAntes);
+    await irPortal('atendimentos');
     esperar((await textoTabela()).includes('Dor lombar'), 'atendimento do passo 7 não apareceu');
-    await portal.locator('.tabela tbody tr', { hasText: 'Dor lombar' }).click();
+    await portal.locator('table tbody tr', { hasText: 'Dor lombar' }).click();
     await portal.waitForSelector('text=Medicamentos administrados');
     await foto(portal, '08-portal-atendimento-online');
-    await irPortal('Atendimentos');
-    await portal.waitForSelector('.tabela tbody tr');
+    await irPortal('atendimentos');
     return `${await linhasTabela()} atendimentos`;
   });
 
@@ -174,108 +171,98 @@ try {
   });
 
   await passo(10, 'Portal: listar atendimentos (e cadastros com os novos medicamentos)', async () => {
-    await irPortal('Cadastros');
+    await irPortal('cadastros');
     await portal.waitForSelector('text=Cetoprofeno');
     await foto(portal, '10-portal-cadastros-novos');
-    await irPortal('Atendimentos');
-    await portal.waitForSelector('.tabela tbody tr');
+    await irPortal('atendimentos');
     await foto(portal, '10-portal-atendimentos');
     return `${await linhasTabela()} atendimentos; ${medicamentosAntes + 2} medicamentos`;
   });
 
   await passo(11, 'Cliente: sincronizar dados a partir do portal (receber)', async () => {
-    await irCliente('Sincronização');
-    await cliente.click('text=Receber dados da central');
-    await cliente.waitForFunction((n) => document.querySelectorAll('.numero-grande')[1]?.textContent === String(n), medicamentosAntes + 2);
+    await irCliente('Sincronizar');
+    await cliente.locator('button', { hasText: /^Receber$/ }).click();
+    await cliente.waitForFunction((n) => document.querySelector('#qtd-medicamentos')?.textContent === String(n), medicamentosAntes + 2);
     await foto(cliente, '11-cliente-recebido-novos');
     return `${medicamentosAntes + 2} medicamentos no aparelho (só o delta veio, pelo cursor)`;
   });
 
   await passo(12, 'Cliente: offline — criar pessoa, prontuário e atendimento', async () => {
-    await cliente.locator('.casca .chave-rede').click();
-    await cliente.waitForSelector('.app[data-online="false"]');
-    await irCliente('Ocorrências');
+    await cliente.locator('.navbar-mf #chave-rede').click();
+    await cliente.waitForSelector('.faixa-offline');
+    await irCliente('Atendimentos');
     await cliente.click('text=Nova ocorrência');
     await cliente.fill('#nome', NOVA_VITIMA);
     await cliente.fill('#cpf', '390.533.447-05');
     await cliente.fill('#nasc', '1991-03-14');
-    await cliente.locator('label.segmento', { hasText: 'Masculino' }).click();
+    await cliente.selectOption('#sexo', 'M');
     await cliente.fill('#cnome', 'Ana Ramos');
-    await cliente.fill('#cpar', 'Irmã');
-    await cliente.fill('#ctel', '(51) 99555-0303');
     await cliente.fill('#cemail', 'ana.ramos@exemplo.com.br');
     await foto(cliente, '12a-cliente-offline-vitima');
-    await cliente.click('text=Continuar para o prontuário');
-    await cliente.locator('.sugestoes button', { hasText: 'Dipirona' }).click();
-    await cliente.locator('label.segmento', { hasText: /^B\+$/ }).click();
-    await cliente.click('text=Continuar para o atendimento');
-    await preencherAtendimento({ local: 'BR-386, km 343 — Estrela', queixa: 'Queda de moto, trauma em membro superior direito', protocolo: 'Manchester', cor: 'Laranja', glasgow: ['Espontânea', 'Orientado', 'Obedece'], pa: ['142', '90'], fc: '112', spo2: '95' });
-    await administrar('Dipirona Sódica — Ampola 500 mg/mL · 2 mL', '1000', 'IV');
-    await cliente.waitForSelector('text=alergia registrada');
-    esperar(await cliente.locator('text=Registrar administração').isDisabled(), 'dipirona deveria estar bloqueada');
-    await cliente.locator('#s-medicamentos').evaluate((e) => e.closest('section').scrollIntoView());
+    await cliente.click('button:has-text("Continuar")');
+    await cliente.locator('button', { hasText: '+ Dipirona' }).click();
+    await cliente.selectOption('#tipo', 'B+');
+    await cliente.click('button:has-text("Continuar")');
+    await preencherAtendimento({ local: 'BR-386, km 343 — Estrela', queixa: 'Queda de moto, trauma em membro superior direito', protocolo: 'Manchester', cor: 'LARANJA', pa: ['142', '90'], fc: '112', spo2: '95' });
+    await escolherMedicamento('Dipirona', '1000', 'IV');
+    await cliente.waitForSelector('text=Administração bloqueada');
+    await cliente.locator('text=Administração bloqueada').scrollIntoViewIfNeeded();
     await cliente.screenshot({ path: join(CAPTURAS, '12b-cliente-alerta-alergia.png') });
-    await administrar('Cetoprofeno — Frasco-ampola 100 mg', '100', 'IV');
-    await cliente.waitForSelector('text=alergia registrada', { state: 'detached' });
-    await cliente.click('text=Registrar administração');
-    await cliente.click('text=Finalizar atendimento');
-    await cliente.waitForSelector('.selo-pendente');
-    await irCliente('Ocorrências');
-    const pend = await cliente.locator('.pendentes').getAttribute('aria-label');
-    esperar(pend.startsWith('3 pendentes'), `esperava 3 pendentes: ${pend}`);
+    await escolherMedicamento('Cetoprofeno', '100', 'IV');
+    await cliente.waitForSelector('text=Administração bloqueada', { state: 'detached' });
+    await cliente.click('text=Salvar atendimento');
+    await cliente.waitForSelector('text=Só no aparelho');
+    const p = await pendentes();
+    esperar(p.includes('3 pendentes'), `esperava 3 pendentes: ${p}`);
+    await irCliente('Atendimentos');
+    await cliente.waitForSelector('a.card-link-hover');
     await foto(cliente, '12c-cliente-offline-pendentes');
     return '3 operações na Outbox; alerta de alergia bloqueou dipirona sem rede';
   });
 
   await passo(13, 'Portal: prontuários e atendimentos — cadastro novo NÃO aparece', async () => {
-    await irPortal('Prontuários');
-    await portal.click('text=Atualizar');
-    await portal.waitForLoadState('networkidle');
+    await irPortal('prontuarios');
     esperar(!(await textoTabela()).includes(NOVA_VITIMA), 'prontuário offline apareceu antes da sincronização');
     await foto(portal, '13-portal-prontuarios-sem-novo');
-    await irPortal('Atendimentos');
-    await portal.click('text=Atualizar');
-    await portal.waitForLoadState('networkidle');
+    await irPortal('atendimentos');
     esperar(!(await textoTabela()).includes(NOVA_VITIMA), 'atendimento offline apareceu antes da sincronização');
     return 'nada do passo 12 na central';
   });
 
   await passo(14, 'Cliente: online — sincronizar para o portal', async () => {
-    await cliente.locator('.casca .chave-rede').click();
-    await cliente.waitForFunction(() => document.querySelector('.pendentes')?.getAttribute('aria-label')?.startsWith('Tudo na central'), null, { timeout: 20000 });
+    await cliente.locator('.navbar-mf #chave-rede').click();
+    await cliente.waitForFunction(() => document.querySelector('.navbar-mf button.rounded-pill')?.textContent?.includes('Tudo na central'), null, { timeout: 20000 });
     await foto(cliente, '14-cliente-sincronizado');
-    return 'Outbox drenada automaticamente ao religar (Observer)';
+    return 'Outbox enviada automaticamente ao religar (Observer)';
   });
 
   await passo(15, 'Portal: prontuários e atendimentos — cadastro novo aparece', async () => {
-    await irPortal('Prontuários');
-    await portal.click('text=Atualizar');
+    await irPortal('prontuarios');
     await portal.waitForSelector(`text=${NOVA_VITIMA}`);
     await foto(portal, '15a-portal-prontuarios-com-novo');
-    await irPortal('Atendimentos');
-    await portal.click('text=Atualizar');
+    await irPortal('atendimentos');
     await portal.waitForSelector(`text=${NOVA_VITIMA}`);
     await foto(portal, '15b-portal-atendimentos-com-novo');
     return 'com o selo "Registrado offline"';
   });
 
   await passo(16, 'Demonstrar a geração da Ficha de Atendimento', async () => {
-    await portal.locator('.tabela tbody tr', { hasText: NOVA_VITIMA }).click();
+    await portal.locator('table tbody tr', { hasText: NOVA_VITIMA }).click();
     await portal.waitForSelector('text=Gerar ficha (PDF)');
     const [resp] = await Promise.all([
       portal.waitForResponse((r) => r.url().includes('/api/ficha/') && r.url().endsWith('/pdf')),
       portal.click('text=Gerar ficha (PDF)'),
     ]);
     esperar(resp.status() === 200 && resp.headers()['content-type'] === 'application/pdf', `PDF falhou: ${resp.status()}`);
-    const sha = resp.headers()['x-documento-sha256'];
-    await portal.waitForSelector('text=Última emissão');
+    const tamanho = resp.headers()['content-length'] ?? '?';
     await foto(portal, '16-portal-ficha');
-    return `PDF ${resp.headers()['content-length']} bytes, SHA-256 ${sha.slice(0, 12)}…`;
+    return `PDF de ${tamanho} bytes`;
   });
 
   await passo(17, 'Demonstrar o e-mail enviado com a ficha em anexo', async () => {
-    await portal.click('text=Enviar ficha');
-    await portal.waitForSelector('.envios li[data-status="ENVIADO"]');
+    esperar((await portal.inputValue('#email')) === 'ana.ramos@exemplo.com.br', 'e-mail do contato não veio preenchido');
+    await portal.click('button:has-text("Enviar ficha")');
+    await portal.waitForSelector('text=Ficha enviada para');
     await foto(portal, '17-portal-email-enviado');
     const doc = env('document.env');
     if (doc.SMTP_HOST) return `entregue ao SMTP ${doc.SMTP_HOST}`;

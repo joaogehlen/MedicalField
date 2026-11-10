@@ -1,12 +1,13 @@
-import { AlertTriangle } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import type { TipoRegistro } from '@medicalfield/shared';
+import { useNavigate } from 'react-router-dom';
+import interior from '@medicalfield/design/img/interior.jpg';
+import { CREDITOS } from '@medicalfield/design/img/creditos';
 import { entrar } from '../api';
+import { Marca } from '../ui';
 
 export function Entrar() {
-  const [tipo, setTipo] = useState<TipoRegistro>('SOCORRISTA');
+  const navegar = useNavigate();
   const [numero, setNumero] = useState('');
-  const [uf, setUf] = useState('RS');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -16,7 +17,8 @@ export function Entrar() {
     setErro(null);
     setEnviando(true);
     try {
-      await entrar({ tipoRegistro: tipo, numeroRegistro: numero.trim(), uf: tipo === 'SOCORRISTA' ? null : uf, senha });
+      await entrar({ tipoRegistro: 'SOCORRISTA', numeroRegistro: numero.trim(), uf: null, senha });
+      navegar('/atendimentos');
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Não foi possível entrar.');
     } finally {
@@ -25,51 +27,35 @@ export function Entrar() {
   }
 
   return (
-    <div className="entrar">
-      <div className="entrar-marca">
-        <div className="marca">
-          <svg viewBox="0 0 24 24" aria-hidden className="marca-cruz"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z" /></svg>
-          <span>MedicalField</span>
-        </div>
-        <h1>Central de regulação</h1>
-        <p>Atendimentos pré-hospitalares recebidos das equipes, prontuários, cadastros de apoio e auditoria de acessos.</p>
-      </div>
-      <form className="painel entrar-form" onSubmit={enviar} noValidate>
-        <h2>Entrar</h2>
-        <div className="campo">
-          <label htmlFor="tipo">Tipo de registro</label>
-          <select id="tipo" value={tipo} onChange={(e) => setTipo(e.target.value as TipoRegistro)}>
-            <option value="SOCORRISTA">ID Socorrista</option>
-            <option value="CRM">CRM</option>
-            <option value="COREN">COREN</option>
-          </select>
-        </div>
-        <div className={tipo === 'SOCORRISTA' ? '' : 'linha-2-1'}>
-          <div className="campo">
-            <label htmlFor="numero">Número</label>
-            <input id="numero" className="mono" autoComplete="username" value={numero} onChange={(e) => setNumero(e.target.value)} />
-          </div>
-          {tipo !== 'SOCORRISTA' && (
-            <div className="campo">
-              <label htmlFor="uf">UF</label>
-              <input id="uf" className="mono" maxLength={2} value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} />
+    <div className="container-fluid p-0">
+      <div className="row g-0 min-vh-100">
+        <div className="col-lg-5 d-flex align-items-center bg-white order-2 order-lg-1">
+          <form className="w-100 p-4 p-md-5" style={{ maxWidth: 460, margin: '0 auto' }} onSubmit={enviar} noValidate>
+            <div className="mb-4"><Marca /></div>
+            <h1 className="h3 mb-1">Portal da central</h1>
+            <p className="text-secondary mb-4">Acompanhe os atendimentos, gere a ficha em PDF e envie aos familiares.</p>
+            <div className="mb-3">
+              <label className="form-label" htmlFor="numero">Registro do administrador</label>
+              <input id="numero" className="form-control form-control-lg font-monospace" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="0001" />
             </div>
-          )}
+            <div className="mb-4">
+              <label className="form-label" htmlFor="senha">Senha</label>
+              <input id="senha" type="password" className="form-control form-control-lg" value={senha} onChange={(e) => setSenha(e.target.value)} />
+            </div>
+            {erro && <div className="alert alert-danger py-2" role="alert">{erro}</div>}
+            <button type="submit" className="btn btn-primary btn-lg w-100" disabled={!numero || !senha || enviando}>
+              {enviando && <span className="spinner-border spinner-border-sm me-2" />}Entrar
+            </button>
+          </form>
         </div>
-        <div className="campo">
-          <label htmlFor="senha">Senha</label>
-          <input id="senha" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
-        </div>
-        {erro && (
-          <div className="alerta alerta-erro" role="alert">
-            <AlertTriangle aria-hidden />
-            <p>{erro}</p>
+        <div className="col-lg-7 login-foto order-1 order-lg-2">
+          <img src={interior} alt="Interior de uma ambulância do SAMU" className="foto-cover" />
+          <div className="legenda">
+            <p className="h4 mb-2 text-white">Tudo o que a equipe registrou em campo, num só lugar.</p>
+            <p className="credito mb-0">Foto: {CREDITOS.interior}</p>
           </div>
-        )}
-        <button type="submit" className="btn btn-primario btn-grande btn-bloco" data-carregando={enviando} disabled={!numero || !senha}>
-          Entrar
-        </button>
-      </form>
+        </div>
+      </div>
     </div>
   );
 }
