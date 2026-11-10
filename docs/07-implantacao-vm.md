@@ -81,7 +81,6 @@ e `sudo systemctl restart medicalfield-document`. Teste isso cedo: algumas redes
 
 | Risco | Mitigação |
 |---|---|
-| Sem HTTPS → navegador não ativa o Service Worker | O app e o simulador funcionam do mesmo jeito; só a instalação como PWA e o cache de arquivos dependem de HTTPS. Use um certificado na VM ou um túnel `ssh -L 8080:localhost:80`. |
 | Porta SMTP bloqueada | Use o modo arquivo (`.eml`) na apresentação. |
 | Pouca memória | A JVM é limitada a `-Xmx384m`; o resto ocupa ~250 MB. |
 | Firewall só libera a 80 | Tudo passa pelo Nginx. |

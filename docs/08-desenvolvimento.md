@@ -5,18 +5,18 @@
 ```
 MedicalField/
 ├── apps/
-│   ├── client/                 # Campo (PWA) — React + Dexie
+│   ├── client/                 # Cliente do socorrista — React + Bootstrap + Dexie
 │   │   └── src/
 │   │       ├── data/           # db.ts (IndexedDB) · repositories.ts (Repository local/remoto)
 │   │       ├── sync/           # network.ts (Observer) · commands.ts (Command) · engine.ts (SyncEngine)
 │   │       ├── services/       # registro.ts (grava local + Outbox) · logs.ts
-│   │       ├── auth/           # sessão e login offline (PBKDF2)
-│   │       ├── api/            # ApiClient (simulador, JWT, refresh, Idempotency-Key)
-│   │       └── ui/             # casca, telas e componentes
-│   └── portal/                 # Portal da regulação — React
+│   │       ├── auth/           # sessão do profissional
+│   │       ├── api/            # cliente HTTP (simulador, JWT, Idempotency-Key)
+│   │       └── ui/             # Layout, telas (pages/) e componentes
+│   └── portal/                 # Portal da central — React + Bootstrap
 ├── packages/
-│   ├── shared/                 # tipos, schemas zod, escalas, ClinicalSafetyChain (+ testes)
-│   └── design/                 # tokens.css · base.css · components.css · fontes
+│   ├── shared/                 # tipos, schemas zod, escalas, regras clínicas (+ testes)
+│   └── design/                 # theme.css (tema sobre Bootstrap) · fontes · img/ (fotos e créditos)
 ├── services/
 │   ├── identity-service/       # Java 21 · Spring Boot (Maven)
 │   ├── clinical-service/       # TypeScript · NestJS (migrations/, seeds/, src/)
@@ -58,6 +58,6 @@ E2E_URL=http://127.0.0.1:3001 JWT_PRIVATE_KEY_PATH=$PWD/.runtime/keys/jwt-privat
 (cd tests/e2e && npm install && node roteiro.mjs)                # roteiro completo
 ```
 
-## 4. Design (Impeccable)
+## 4. Design (Impeccable + Bootstrap)
 
-As telas seguem a skill de design **Impeccable**: `PRODUCT.md` (produto e usuários), `.impeccable/surfaces/*.md` (contrato de direção de cada superfície) e `DESIGN.md` + `.impeccable/design.json` (sistema construído). Ao criar uma tela nova, reutilize as classes de `packages/design` e as regras de `DESIGN.md`. Em especial: a cor de triagem sempre acompanha o nome escrito, e o estado offline é mostrado pela faixa refletiva, não por toasts.
+As telas usam **Bootstrap 5.3** e **Bootstrap Icons**, com o tema claro de `packages/design/theme.css` (cores, fontes Atkinson Hyperlegible, etiqueta de triagem, faixa offline). O direcionamento visual segue a skill **Impeccable**: `PRODUCT.md` (produto e usuários), `.impeccable/surfaces/*.md` (direção de cada superfície) e `DESIGN.md` (sistema construído). Ao criar uma tela nova, use componentes do Bootstrap e as classes de `theme.css`. Regras principais: a cor de triagem sempre acompanha o nome escrito; o estado offline aparece na faixa amarela e preta; alergias sempre em destaque vermelho.

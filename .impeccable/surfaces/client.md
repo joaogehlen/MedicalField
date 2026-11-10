@@ -1,21 +1,21 @@
-# Surface: MedicalField Campo (apps/client)
+# Surface: MedicalField Cliente (apps/client)
 
-Scope: aplicação do socorrista (PWA). Mode: **Operate**. Build path: code-led (tela de aplicativo).
+Scope: aplicação do socorrista (web responsiva). Mode: **Operate**. Build path: code-led, Bootstrap 5.3 + `packages/design/theme.css`.
 
-Audience/job: registrar pessoa, prontuário e atendimento no local da ocorrência, online ou offline; sincronizar; gerar e enviar a ficha.
-Important states: online, offline, sincronizando, pendente/sincronizado por registro, erro de sincronização, alerta clínico (bloqueante/aviso), vazio.
+Audience/job: registrar pessoa, prontuário e atendimento no local da ocorrência, online ou offline, e sincronizar com a central.
+Important states: online, offline, sincronizando, pendente/na central/recusado por registro, medicamento bloqueado pela regra clínica, vazio.
 Constraints: luvas e estresse (alvos grandes), luz variável (contraste alto), telas de 390 px a tablet.
 
 ## Direction contract
 
-THESIS: A ficha de APH em papel, digitalizada sem perder o que ela faz bem — campos na ordem da ocorrência, triagem visível de longe — e a rede tratada como estado do mundo, não como erro. Recusa o painel genérico de SaaS (cards de métrica, sidebar cinza, toast de "sem conexão").
+THESIS: Ficha de atendimento clara e clínica — tema claro, cartões brancos, azul hospitalar — com a rede tratada como estado sempre visível, não como erro.
 
-OWN-WORLD: Fardamento e viatura do APH. Fundo papel frio (#F4F6F7), tinta azul-noite (#0F1B24), casca em azul-marinho de farda (#10283D). Cores de triagem reservadas ao significado (vermelho, laranja, amarelo, verde, azul, preto), sempre com o nome escrito. Atkinson Hyperlegible Next para tudo; Atkinson Hyperlegible Mono para medidas (PA, FC, SpO₂, doses, horários). Cantos de 6 px, traços de 1 px, sombras curtas e suaves.
+OWN-WORLD: Atendimento pré-hospitalar real: fotos de ambulâncias do SAMU no login e no topo; cores de triagem reservadas ao significado e sempre com o nome escrito; alergias em faixa vermelha.
 
-STORY: O socorrista entra, vê suas ocorrências e o estado da rede; registra a vítima em poucos toques; percebe quando está offline sem ler nada; ao voltar o sinal, vê os registros pendentes virarem sincronizados sozinhos.
+STORY: O socorrista entra, recebe os dados da central, registra a vítima em três etapas e percebe na hora quando está offline (faixa amarela e preta); ao religar, os pendentes viram “Na central” sozinhos.
 
-FIRST VIEWPORT: Casca azul-marinho no topo com o nome, a chave Online/Offline e o contador de pendentes. Abaixo, a lista de ocorrências do plantão: cada linha com a etiqueta de triagem, nome/queixa, horário em mono e o selo de sincronização. Ação primária "Nova ocorrência" fixa embaixo, ao alcance do polegar.
+FIRST VIEWPORT: Barra branca com a marca, o menu (Atendimentos, Pacientes, Sincronizar), o contador de pendentes e a chave Online/Offline. Abaixo, o banner com foto e as ações “Receber dados” e “Nova ocorrência”, seguido da lista de atendimentos.
 
-FORM: Sinalização refletiva de viatura (faixa chevron). Assinatura: quando offline, a casca ganha a faixa chevron âmbar/tinta da traseira da ambulância — o aparelho está "em campo, fora da rede" — e a chave mora nela. seed: none (unavailable)
+FORM: Assinatura: faixa refletiva amarela e preta (traseira da viatura) sob a barra quando offline.
 
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+FINISH: revisado por capturas em 1366 px e 390 px (Playwright) e documentado em DESIGN.md.

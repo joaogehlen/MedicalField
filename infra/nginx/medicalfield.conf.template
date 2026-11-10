@@ -29,7 +29,7 @@ server {
   gzip_types text/css application/javascript application/json image/svg+xml;
 
   # identity-service: autenticação, profissionais, logs do dispositivo
-  location ~ ^/api/(auth|profissional|log|access-log)(/.*)?$ {
+  location ~ ^/api/(auth|profissional|log)(/.*)?$ {
     rewrite ^/api/(.*)$ /$1 break;
     proxy_pass http://mf_identity;
   }
@@ -46,15 +46,11 @@ server {
     proxy_pass http://mf_clinical;
   }
 
-  # Cliente (PWA) e portal
+  # Cliente e portal
   location = /app { return 301 /app/; }
   location /app/ {
     alias ${MF_WWW}/app/;
     try_files $uri $uri/ /app/index.html;
-  }
-  location = /app/sw.js {
-    alias ${MF_WWW}/app/sw.js;
-    add_header Cache-Control "no-cache";
   }
   location = /portal { return 301 /portal/; }
   location /portal/ {

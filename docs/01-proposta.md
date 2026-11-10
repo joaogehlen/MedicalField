@@ -24,13 +24,13 @@
 | RF03 | Cadastrar e consultar **prontuário** | clinical `POST/GET /prontuario`; cliente e portal |
 | RF04 | Registrar **atendimento** (sinais vitais, Glasgow, triagem, medicamentos) | clinical `POST /atendimento`; cliente “Novo atendimento” |
 | RF05 | Consultar atendimentos de uma pessoa | clinical `GET /atendimento/{pessoaId}` |
-| RF06 | Catálogo de **medicamentos** e **regras de segurança clínica**, inclusive offline | `ClinicalSafetyChain` em `packages/shared`, executada no aparelho e revalidada no servidor |
+| RF06 | Catálogo de **medicamentos** e **regras de segurança clínica**, inclusive offline | Regras (via, dose máxima, alergia) em `packages/shared`, executadas no aparelho e conferidas no servidor |
 | RF07 | **Sincronização** bidirecional | cliente `SyncEngine` (push pela Outbox, pull por cursor); clinical `GET /sync/pull` |
-| RF08 | **Simulador de conectividade** | chave “Online/Offline” na casca do cliente |
+| RF08 | **Simulador de conectividade** | chave “Online/Offline” na barra superior do cliente |
 | RF09 | Enviar **logs locais gerados offline** | identity `POST /log` |
 | RF10 | **Ficha em PDF** | document `GET /ficha/{id}/pdf` |
 | RF11 | **E-mail com a ficha anexa** | document `POST /ficha/{id}/email` |
-| RF12 | **Portal**: autenticar, ver atendimentos, prontuários e cadastros de apoio | `apps/portal` |
+| RF12 | **Portal**: autenticar, ver atendimentos, prontuários e cadastros | `apps/portal` |
 | RF13 | Cadastros de apoio inseridos **direto no banco** | `infra/db/roteiro/passo-09-novos-medicamentos.sql` + trigger de sincronização |
 
 ## 3. Requisitos não funcionais
@@ -40,11 +40,11 @@
 | RNF01 | ≥ 3 serviços em **linguagens diferentes** | **Java** (identity), **TypeScript** (clinical), **Python** (document) |
 | RNF02 | **Persistência dual** | PostgreSQL 16 (central) + IndexedDB/Dexie (embarcado no cliente) |
 | RNF03 | Rodar na **VM da Univates**, sem contêineres | Nginx + systemd + PostgreSQL nativos ([07](07-implantacao-vm.md)) |
-| RNF04 | Todas as rotas autenticadas, exceto login | JWT RS256 validado em cada serviço; só `POST /auth/login` e `/auth/refresh` são públicas |
+| RNF04 | Todas as rotas autenticadas, exceto login | JWT RS256 validado em cada serviço; só `POST /auth/login` é pública |
 | RNF05 | **Log de acesso** em todos os serviços | Middleware/filtro nos três serviços com data/hora, IP, profissional, método, rota, status e tempo (ms) |
 | RNF06 | Idempotência | `Idempotency-Key` em toda escrita + IDs UUID v7 gerados no aparelho |
-| RNF07 | Rastreabilidade | `registrado_por` × `sincronizado_por`, `dispositivo_id`, logs do aparelho, `processed_operation`, `sync_conflito` |
-| RNF08 | Tratamento de conflitos | *Strategies* (LWW, FieldMerge, AppendOnlyUnion, ServerWins) |
+| RNF07 | Rastreabilidade | `registrado_por`, `dispositivo_id`, logs do aparelho, `processed_operation`, `sync_conflito` |
+| RNF08 | Tratamento de conflitos | *Strategies* (LastWriteWins, Merge, ServerWins) |
 | RNF09 | Testável no Postman/Insomnia | `postman/MedicalField.postman_collection.json` |
 | RNF10 | GUI para todo o roteiro | Roteiro automatizado aprovado 17/17 ([06](06-roteiro-testes.md)) |
 
@@ -90,8 +90,8 @@ Rotas adicionais estão em [04-apis.md](04-apis.md).
 | Ambiguidade | Decisão |
 |---|---|
 | `GET /atendimento/{id}`: id da pessoa ou do atendimento? | Da **pessoa** (texto da proposta). Detalhe de um atendimento: `GET /atendimento/detalhe/{id}`. |
-| `GET /prontuario/{id}` | `{id}` = id do prontuário (1 por pessoa). Busca por pessoa: `GET /prontuario?pessoaId=`. |
-| “Cadastros de apoio” | Medicamentos, profissionais, hospitais e viaturas. |
+| `GET /prontuario/{id}` | `{id}` = id do prontuário (1 por pessoa). |
+| “Cadastros de apoio” | Medicamentos e profissionais. |
 | Rota pública para chave do JWT quebraria RNF04 | A chave pública é distribuída **como arquivo**; nenhuma rota pública além do login. |
-| Login sem internet | Após um login online, o aparelho guarda uma credencial derivada (PBKDF2) e permite **login offline**. |
-| Cliente “móvel” | PWA React: roda no navegador da apresentação e em celular/tablet. |
+| Login sem internet | O login exige rede; depois dele a sessão (12 h) continua valendo offline. |
+| Cliente “móvel” | Aplicação web React responsiva (Bootstrap): roda no navegador da apresentação e no celular. |

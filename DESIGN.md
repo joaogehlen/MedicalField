@@ -1,194 +1,96 @@
 ---
 name: MedicalField
-description: Prontuário de emergência offline-first — farda azul-marinho, papel frio e triagem que se lê de longe.
+description: Prontuário de emergência offline-first — tema claro sobre Bootstrap, azul hospitalar, fotos reais do SAMU e triagem que se lê de longe.
 colors:
-  farda: "#10283d"
-  farda-2: "#1b3b57"
-  papel: "#f4f6f7"
+  azul: "#1559a8"
+  azul-hover: "#114a8c"
+  azul-claro: "#eaf2fb"
+  titulo: "#0e2a47"
+  tinta: "#14263a"
+  tinta-2: "#51606f"
+  fundo: "#f4f7fb"
   folha: "#ffffff"
-  folha-2: "#eaeef1"
-  regua: "#cfd8de"
-  regua-forte: "#9aa9b4"
-  tinta: "#0f1b24"
-  tinta-2: "#46555f"
-  tinta-3: "#5f6e78"
-  refletivo: "#f2b300"
-  refletivo-escuro: "#1a1a1a"
-  foco: "#ffb800"
+  borda: "#dfe6ee"
+  marca-vermelho: "#d0263a"
   triagem-vermelho: "#c8102e"
   triagem-laranja: "#c2500a"
   triagem-amarelo: "#f2c200"
   triagem-verde: "#18794a"
   triagem-azul: "#1f5fc0"
   triagem-preto: "#1a1a1a"
-  erro: "#b3261e"
-  erro-fundo: "#fdecec"
-  aviso-fundo: "#fff4d6"
-  ok: "#18794a"
-  ok-fundo: "#e5f4ec"
-  pendente-fundo: "#fff1cc"
+  alergia-fundo: "#fdebee"
+  alergia-texto: "#9b1426"
+  offline-faixa: "#f2b300"
 typography:
-  titulo:
-    fontFamily: "Atkinson Hyperlegible Next, system-ui, sans-serif"
-    fontSize: "1.4375rem"
-    fontWeight: 700
-    lineHeight: 1.2
-  secao:
-    fontFamily: "Atkinson Hyperlegible Next, system-ui, sans-serif"
-    fontSize: "1rem"
-    fontWeight: 700
-    lineHeight: 1.2
-  corpo:
-    fontFamily: "Atkinson Hyperlegible Next, system-ui, sans-serif"
-    fontSize: "1rem"
-    fontWeight: 400
-    lineHeight: 1.45
-  rotulo:
-    fontFamily: "Atkinson Hyperlegible Next, system-ui, sans-serif"
-    fontSize: "0.875rem"
-    fontWeight: 700
-    lineHeight: 1.3
-  medida:
-    fontFamily: "Atkinson Hyperlegible Mono, ui-monospace, monospace"
-    fontSize: "1rem"
-    fontWeight: 400
-    lineHeight: 1.3
+  familia: "Atkinson Hyperlegible Next, system-ui, sans-serif"
+  medidas: "Atkinson Hyperlegible Mono, ui-monospace, monospace"
+  titulos: "700, letter-spacing -0.01em"
 rounded:
-  sm: "4px"
-  md: "6px"
+  padrao: "0.6rem"
+  grande: "0.9rem"
   pilula: "999px"
-spacing:
-  e1: "4px"
-  e2: "8px"
-  e3: "12px"
-  e4: "16px"
-  e6: "24px"
-  e8: "32px"
-  alvo: "48px"
-components:
-  button-primary:
-    backgroundColor: "{colors.farda}"
-    textColor: "{colors.folha}"
-    rounded: "{rounded.md}"
-    padding: "0 16px"
-    height: "40px"
-  button-primary-hover:
-    backgroundColor: "{colors.farda-2}"
-  button-secondary:
-    backgroundColor: "{colors.folha}"
-    textColor: "{colors.tinta}"
-    rounded: "{rounded.md}"
-    height: "40px"
-  input:
-    backgroundColor: "{colors.folha}"
-    textColor: "{colors.tinta}"
-    rounded: "{rounded.md}"
-    height: "44px"
-    padding: "10px 12px"
-  shell:
-    backgroundColor: "{colors.farda}"
-    textColor: "{colors.folha}"
-    height: "60px"
-  tag-triagem:
-    textColor: "{colors.folha}"
-    typography: "{typography.rotulo}"
-    height: "26px"
-  selo-pendente:
-    backgroundColor: "{colors.pendente-fundo}"
-    rounded: "{rounded.pilula}"
+framework: "Bootstrap 5.3.3 + Bootstrap Icons 1.11.3"
 ---
 
-# Design System: MedicalField
+# MedicalField — sistema de design
 
-## Overview
+## 1. Direção
 
-**Norte: farda e viatura do atendimento pré-hospitalar.** O sistema é usado de luvas, sob estresse, no sol da rodovia ou na cabine escura da ambulância. Por isso ele se parece com o mundo de quem atende, e não com um painel de SaaS: a casca de toda tela tem o azul-marinho da farda, o fundo é um papel frio de ficha, a tinta é azul-noite, e as cores de triagem aparecem só quando carregam significado, sempre com o nome escrito.
+Tema **claro**, limpo e hospitalar: fundo azul-acinzentado bem claro, cartões brancos, ações em azul. O vermelho da cruz fica só na marca; as cores fortes são reservadas à **classificação de risco** (sempre com o nome escrito) e às **alergias**. Fotos reais de ambulâncias do SAMU dão contexto no login e no topo da tela inicial.
 
-Duas superfícies compartilham o sistema. O **Campo** (cliente do socorrista) é confortável, com alvos de 48 px e uma coluna, pensado para celular e tablet. O **Portal** da regulação usa o mesmo mundo em densidade de escritório, com tabelas de linha baixa e corpo de 15 px.
+A base é o **Bootstrap 5.3** (grid, cartões, formulários, tabelas, badges, `btn-check`, `form-switch`), personalizado por variáveis CSS em `packages/design/theme.css`. Não há CSS por tela: as telas usam só classes do Bootstrap e as poucas classes próprias abaixo.
 
-A assinatura é a **faixa refletiva**. Quando o aparelho está fora da rede, a casca ganha a faixa chevron âmbar/preta da traseira da viatura: dá para perceber que está offline sem ler nada.
+## 2. Tokens
 
-## Colors
+| Token | Valor | Uso |
+|---|---|---|
+| `--mf-azul` | `#1559a8` | botões primários, links, item ativo do menu (`--bs-primary`) |
+| `--mf-fundo` | `#f4f7fb` | fundo da página (`--bs-body-bg`) |
+| `--mf-titulo` / `--mf-tinta` | `#0e2a47` / `#14263a` | títulos / texto |
+| `--mf-tinta-2` | `#51606f` | texto secundário (`--bs-secondary-color`) |
+| `--mf-borda` | `#dfe6ee` | bordas de cartões e tabelas |
+| `--mf-vermelho` | `#d0263a` | só o quadrado da cruz na marca |
+| `--t-*` | vermelho, laranja, amarelo, verde, azul, preto | classificação de risco (START / Manchester) |
 
-### Primary
-- **Farda** (`#10283d`): casca do app, barra do portal e botão primário. Ações primárias usam a farda, nunca uma cor de triagem.
-- **Farda 2** (`#1b3b57`): hover e item ativo sobre a casca.
+Fontes: **Atkinson Hyperlegible Next** (texto, projetada para baixa visão) e **Atkinson Hyperlegible Mono** (medidas, horários e CPF, com algarismos tabulares).
 
-### Secondary
-- **Refletivo** (`#f2b300`) com **preto refletivo** (`#1a1a1a`): só para o estado offline (faixa, chave, selo "Registrado offline") e para o sublinhado da navegação ativa. O amarelo de foco (`#ffb800`) aparece no anel de foco e na seleção de texto.
+## 3. Classes próprias (`theme.css`)
 
-### Tertiary — triagem
-Vermelho `#c8102e`, Laranja `#c2500a`, Amarelo `#f2c200` (texto em tinta), Verde `#18794a`, Azul `#1f5fc0`, Preto `#1a1a1a`. Todas passam AA com o texto da etiqueta. Elas vêm do START e do Manchester e não decoram nada.
+| Classe | O que é |
+|---|---|
+| `.navbar-mf` | barra superior branca com menu em pílulas (ativo em azul claro) |
+| `.marca`, `.marca-cruz` | logotipo: cruz branca em quadrado vermelho + “MedicalField” |
+| `.triagem[data-cor]` | etiqueta de classificação: pílula na cor, com bolinha e o **nome escrito** |
+| `.btn.escolha-cor[data-cor]` | botão de escolha da classificação (borda grossa na cor; preenchido quando marcado) |
+| `.alergias` | faixa vermelho-clara com ícone e “Alergias: …” — aparece em todas as telas do paciente |
+| `.faixa-offline` | faixa amarela e preta (refletivo de viatura) sob a barra quando o aparelho está offline |
+| `.badge-offline` | selo “Registrado offline” |
+| `.login-foto`, `.banner`, `.foto-cover` | foto com degradê azul-escuro para texto branco legível |
+| `.card-link-hover`, `.vazio` | cartão clicável com elevação; estado vazio com ícone |
 
-### Neutral
-Papel `#f4f6f7` (fundo), Folha `#ffffff` (superfícies), Folha 2 `#eaeef1` (cabeçalhos de tabela, segunda camada), Régua `#cfd8de` e Régua forte `#9aa9b4` (traços de 1 px), Tinta `#0f1b24`, Tinta 2 `#46555f` (secundário, 7:1), Tinta 3 `#5f6e78` (rótulos discretos).
+## 4. Telas
 
-### Named Rules
-- **A cor de triagem nunca está sozinha.** Toda etiqueta escreve o nome ("Laranja · Muito urgente").
-- **Alergia é vermelha e grande.** O bloco de alergias tem borda de 2 px vermelha e fundo rosado em toda tela onde há medicação.
-- **Estado de sincronização tem vocabulário fixo:** "Só no aparelho" (âmbar, relógio), "Na central" (verde, check), "Recusado" (vermelho).
+**Cliente (socorrista)** — `/app`
+- *Entrar*: foto da ambulância à esquerda (some no celular), formulário à direita com CRM / COREN / Socorrista em `btn-group` e a chave Online/Offline.
+- *Atendimentos*: banner com foto da frota, “Receber dados” e “Nova ocorrência”; lista de cartões com etiqueta de triagem, paciente, queixa, horário e selo de sincronização.
+- *Nova ocorrência*: três etapas (Vítima → Prontuário → Atendimento) indicadas por pílulas.
+- *Atendimento*: cartões Ocorrência, Classificação de risco, Glasgow (com total e gravidade), Sinais vitais (com unidades), Medicamentos (bloqueio em `alert-danger` quando a regra clínica falha) e Observações.
+- *Sincronizar*: chave, último envio/recebimento, contadores do aparelho e a fila de pendentes.
 
-## Typography
+**Portal (central)** — `/portal`
+- *Entrar*: formulário à esquerda, foto do interior da ambulância à direita.
+- *Atendimentos* e *Prontuários*: tabelas com busca; linha inteira clicável.
+- *Detalhe do atendimento*: cartões do paciente e da avaliação; à direita, “Gerar ficha (PDF)” e o envio por e-mail com o contato do familiar já preenchido.
+- *Cadastros*: abas Medicamentos e Profissionais.
 
-Uma família só: **Atkinson Hyperlegible Next**, criada para legibilidade com baixa visão e que distingue I/l/1 e O/0. As medidas clínicas (PA, FC, SpO₂, doses, horários, CPF, IDs) usam **Atkinson Hyperlegible Mono**, com algarismos tabulares e zero cortado. As fontes são servidas pelo próprio projeto (@fontsource; no PDF, embutidas).
+## 5. Regras
 
-### Hierarchy
-- Título de página 1.4375rem/700. No login e nos números grandes, 1.75rem.
-- Título de seção 1rem/700, sobre um traço de 1 px na cor da farda (a régua da ficha em papel).
-- Corpo 1rem/1.45 no Campo; 15 px no Portal.
-- Rótulos 0.875rem/700. Rótulos de dado (dt) 0.75rem em Tinta 3.
-- Escala fixa em rem (razão ~1,2), sem tipografia fluida.
+1. A cor de triagem **sempre** vem com o nome escrito (nunca só cor).
+2. Alergias sempre visíveis em vermelho no topo das telas do paciente.
+3. O estado da rede está sempre na barra superior: chave verde (Online) ou amarela (Offline) + faixa amarela e preta + contador de pendentes.
+4. Cada registro mostra onde está: “Na central”, “Só no aparelho” ou “Recusado”.
+5. Contraste AA; alvos de toque grandes (`btn-lg` nas ações principais); layout responsivo de 390 px a desktop.
 
-## Layout
+## 6. Imagens
 
-- **Campo:** coluna única de até 980 px; navegação inferior com 3 destinos abaixo de 900 px, e no topo acima disso. A ação primária fica na barra fixa inferior dos formulários, ao alcance do polegar.
-- **Portal:** largura de até 1320 px, filtros em linha sobre a tabela e detalhe em duas colunas (paciente e ocorrência) que viram uma abaixo de 900 px.
-- Espaçamento em base 4 px (4/8/12/16/20/24/32/48). Há mais espaço acima de um título de seção do que abaixo.
-- Campo-dado: pares rótulo/valor numa grade `auto-fill minmax(160px)` com régua inferior de 1 px, como os campos da ficha impressa.
-
-## Elevation & Depth
-
-Profundidade discreta e sempre com deslocamento. `sombra-1` (0 1px 2px) em cartões e botões primários; `sombra-2` (0 4px 12px −2px) na casca e no hover dos cartões; `sombra-3` (0 12px 32px −6px) só na barra de ações fixa. Não há brilho colorido nem sombra dura.
-
-## Shapes
-
-Cantos de 6 px em superfícies, botões e campos; 4 px nos selos pequenos; pílula nos selos de estado e nos chips de termos. A etiqueta de triagem tem forma própria: canto reto de 4 px de um lado, arredondado de 13 px do outro, e um ilhós (furo) circular, como a tag presa ao punho da vítima.
-
-## Components
-
-### Buttons
-Primário na farda com texto branco; secundário branco com régua forte; perigo branco com texto e borda de erro; fantasma sem borda. A altura é 40 px no Portal e 48 px (`btn-grande`) nas ações do Campo. Ao carregar, o rótulo some e um giro de 16 px aparece no lugar, sem mudar a largura.
-
-### Chips
-Termos clínicos (alergias, comorbidades, procedimentos) são pílulas cinza com botão de remover de 28 px. As sugestões aparecem como pílulas tracejadas que viram sólidas no hover.
-
-### Cards / Containers
-`painel`: fundo Folha, régua de 1 px, raio de 6 px, sem aninhamento. Cada ocorrência da lista do Campo é um cartão de 72 px com etiqueta, nome, queixa, hora em mono e selos.
-
-### Inputs / Fields
-44 px de altura, régua forte; no foco, borda farda e anel amarelo de foco. Campo inválido ganha borda e fundo de erro, com a mensagem abaixo e em negrito. Medidas usam mono, com a unidade dentro do campo à direita. Sinais vitais fora da faixa de referência ganham borda laranja.
-
-### Navigation
-Casca azul-marinho com a marca (cruz branca) e a navegação, em que o item ativo tem sublinhado refletivo. No Campo, a casca também traz o contador de pendentes e a **chave Online/Offline**: verde quando online; quando offline, a chave inteira fica amarela refletiva.
-
-### Etiqueta de triagem (assinatura)
-`.tag-triagem[data-cor]`: forma de tag com ilhós, cor do protocolo e nome escrito. A escolha da classificação no formulário usa botões grandes com uma faixa de 6 px na cor da triagem, que se preenchem por inteiro quando marcados.
-
-### Faixa refletiva (assinatura)
-`.faixa-refletiva`: 12 px de listras a −45° (âmbar/preto) sob a casca quando offline, com transição de altura de 220 ms. A miniatura `.selo-offline` marca registros que nasceram sem rede no Campo e no Portal (no PDF, como selo âmbar com contorno).
-
-## Do's and Don'ts
-
-### Do:
-- **Do** escrever o nome da classificação em toda etiqueta de triagem.
-- **Do** usar mono para qualquer número clínico, horário, CPF ou identificador.
-- **Do** mostrar o estado de sincronização em cada registro e na casca.
-- **Do** manter as alergias visíveis acima de qualquer formulário de medicação.
-- **Do** escrever na língua do APH: ocorrência, vítima, regulação, viatura.
-
-### Don't:
-- **Don't** usar cor de triagem para decorar, para ação primária ou para marca.
-- **Don't** usar toast para avisar "sem conexão": o estado offline é a faixa refletiva, que é permanente enquanto durar.
-- **Don't** criar cartões de métrica (número grande + rótulo) para preencher telas. O Portal começa pela tabela.
-- **Don't** usar borda lateral colorida em cartões ou alertas; o alerta tem borda de 1 px inteira e fundo tingido.
-- **Don't** usar eyebrow/kicker acima de títulos nem numerar seções.
+Fotos do Wikimedia Commons em domínio público, reduzidas para 1280 px, em `packages/design/img/` — créditos em [`CREDITOS.md`](packages/design/img/CREDITOS.md) e na própria tela de login.
