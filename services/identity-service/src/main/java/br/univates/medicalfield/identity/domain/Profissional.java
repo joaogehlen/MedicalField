@@ -1,9 +1,8 @@
 package br.univates.medicalfield.identity.domain;
 
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
-/** Linha da tabela profissional, incluindo dados sensíveis que nunca saem do serviço. */
+/** Linha da tabela profissional (o hash da senha nunca sai do serviço). */
 public record Profissional(
         UUID id,
         String nome,
@@ -13,11 +12,9 @@ public record Profissional(
         Papel papel,
         String email,
         String senhaHash,
-        int tentativasFalhas,
-        OffsetDateTime bloqueadoAte,
         boolean ativo) {
 
-    /** Identificação legível do registro profissional, ex.: "CRM 12345/RS". */
+    /** Ex.: "CRM 12345/RS". */
     public String registro() {
         return uf == null || uf.isBlank()
                 ? tipoRegistro + " " + numeroRegistro

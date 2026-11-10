@@ -1,14 +1,12 @@
 """
-Interceptor de auditoria (LGPD): registra cada requisição HTTP com data/hora, IP do
-cliente, profissional autenticado, método, rota, status e tempo em ms. A requisição só
-enfileira; uma thread grava em lote. Cada linha também vai para o stdout em JSON.
+Middleware de log de acesso (LGPD): data/hora, IP do cliente, profissional autenticado,
+método, rota, status e tempo de processamento. A requisição só enfileira; uma thread
+grava em lote no banco.
 """
-import json
 import logging
 import queue
 import threading
 import time
-import uuid
 from datetime import datetime, timezone
 
 from fastapi import Request
@@ -20,67 +18,49 @@ log = logging.getLogger("access-log")
 _fila: "queue.Queue[dict]" = queue.Queue(maxsize=10_000)
 
 
-def _corta(s, n):
-    return s[:n] if isinstance(s, str) else s
-
-
 def _gravador() -> None:
     while True:
         lote = [_fila.get()]
-        try:
-            while len(lote) < 500:
-                lote.append(_fila.get_nowait())
-        except queue.Empty:
-            pass
+        while len(lote) < 500 and not _fila.empty():
+            lote.append(_fila.get_nowait())
         try:
             with engine().begin() as conn:
                 conn.execute(
-                    text(
-                        """INSERT INTO access_log (data_hora, request_id, ip_cliente, profissional_id, metodo, rota,
-                           caminho, status_code, tempo_ms, user_agent)
-                           VALUES (:data_hora, :request_id, :ip_cliente, :profissional_id, :metodo, :rota, :caminho,
-                                   :status_code, :tempo_ms, :user_agent)"""
-                    ),
+                    text("""INSERT INTO access_log (data_hora, ip_cliente, profissional_id, metodo, rota, status_code, tempo_ms)
+                            VALUES (:data_hora, :ip_cliente, :profissional_id, :metodo, :rota, :status_code, :tempo_ms)"""),
                     lote,
                 )
-        except Exception as e:  # noqa: BLE001 — o stdout já tem a linha
-            log.error("Falha ao persistir %d entradas de access log: %s", len(lote), e)
+        except Exception as e:  # noqa: BLE001 — a linha já foi para o stdout
+            log.error("Falha ao gravar %d entradas de log de acesso: %s", len(lote), e)
 
 
 def iniciar_gravador() -> None:
-    threading.Thread(target=_gravador, name="access-log-writer", daemon=True).start()
+    threading.Thread(target=_gravador, name="access-log", daemon=True).start()
 
 
 async def middleware(request: Request, call_next):
     inicio = time.perf_counter()
     data_hora = datetime.now(timezone.utc)
-    rid = request.headers.get("x-request-id")
-    request.state.request_id = rid if rid and len(rid) <= 64 else str(uuid.uuid4())
     request.state.profissional_id = None
     status = 500
     try:
         response = await call_next(request)
         status = response.status_code
-        response.headers["X-Request-Id"] = request.state.request_id
         return response
     finally:
-        rota = getattr(request.scope.get("route"), "path", None) or request.url.path
         xff = request.headers.get("x-forwarded-for")
         entrada = {
             "data_hora": data_hora,
-            "request_id": request.state.request_id,
-            "ip_cliente": _corta(xff.split(",")[0].strip() if xff else (request.client.host if request.client else None), 64),
+            "ip_cliente": xff.split(",")[0].strip() if xff else (request.client.host if request.client else None),
             "profissional_id": request.state.profissional_id,
             "metodo": request.method,
-            "rota": _corta(rota, 200),
-            "caminho": _corta(request.url.path, 500),
+            "rota": (getattr(request.scope.get("route"), "path", None) or request.url.path)[:200],
             "status_code": status,
             "tempo_ms": round((time.perf_counter() - inicio) * 1000, 2),
-            "user_agent": _corta(request.headers.get("user-agent"), 300),
         }
-        linha = {k: v for k, v in entrada.items() if k not in ("caminho", "user_agent")}
-        log.info(json.dumps({"servico": "document-service", **linha, "data_hora": data_hora.isoformat()}))
+        log.info("%s %s %s %s %s %sms profissional=%s", data_hora.isoformat(), entrada["ip_cliente"], entrada["metodo"],
+                 entrada["rota"], status, entrada["tempo_ms"], entrada["profissional_id"])
         try:
             _fila.put_nowait(entrada)
         except queue.Full:
-            log.warning("Fila de access log cheia; entrada mantida apenas no stdout")
+            log.warning("Fila do log de acesso cheia")

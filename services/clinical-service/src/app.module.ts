@@ -6,7 +6,6 @@ import { ProblemFilter } from './common/problem.filter';
 import { DatabaseService } from './db/database.service';
 import { AtendimentoController } from './atendimento/atendimento.controller';
 import { AtendimentoService } from './atendimento/atendimento.service';
-import { AuditoriaController } from './auditoria/auditoria.controller';
 import { CatalogoController } from './catalogo/catalogo.controller';
 import { PessoaController } from './pessoa/pessoa.controller';
 import { PessoaService } from './pessoa/pessoa.service';
@@ -16,14 +15,7 @@ import { SyncController } from './sync/sync.controller';
 import { SyncSupport } from './sync/sync-support';
 
 @Module({
-  controllers: [
-    PessoaController,
-    ProntuarioController,
-    AtendimentoController,
-    CatalogoController,
-    SyncController,
-    AuditoriaController,
-  ],
+  controllers: [PessoaController, ProntuarioController, AtendimentoController, CatalogoController, SyncController],
   providers: [
     DatabaseService,
     AccessLogService,

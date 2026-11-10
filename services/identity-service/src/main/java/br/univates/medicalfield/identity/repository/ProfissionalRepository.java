@@ -5,19 +5,14 @@ import br.univates.medicalfield.identity.domain.Profissional;
 import br.univates.medicalfield.identity.domain.TipoRegistro;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class ProfissionalRepository {
-
-    private static final RowMapper<Profissional> MAPPER = ProfissionalRepository::map;
 
     private final JdbcTemplate jdbc;
 
@@ -29,25 +24,11 @@ public class ProfissionalRepository {
         return jdbc.query("""
                 SELECT * FROM profissional
                 WHERE tipo_registro = ? AND numero_registro = ? AND COALESCE(uf, '') = COALESCE(?, '')
-                """, MAPPER, tipo.name(), numero, uf).stream().findFirst();
+                """, ProfissionalRepository::map, tipo.name(), numero, uf).stream().findFirst();
     }
 
-    public Optional<Profissional> porId(UUID id) {
-        return jdbc.query("SELECT * FROM profissional WHERE id = ?", MAPPER, id).stream().findFirst();
-    }
-
-    public List<Profissional> listar(TipoRegistro tipo, Boolean ativo, String busca) {
-        StringBuilder sql = new StringBuilder("SELECT * FROM profissional WHERE 1=1");
-        List<Object> args = new ArrayList<>();
-        if (tipo != null) { sql.append(" AND tipo_registro = ?"); args.add(tipo.name()); }
-        if (ativo != null) { sql.append(" AND ativo = ?"); args.add(ativo); }
-        if (busca != null && !busca.isBlank()) {
-            sql.append(" AND (nome ILIKE ? OR numero_registro ILIKE ?)");
-            args.add("%" + busca.trim() + "%");
-            args.add("%" + busca.trim() + "%");
-        }
-        sql.append(" ORDER BY nome");
-        return jdbc.query(sql.toString(), MAPPER, args.toArray());
+    public List<Profissional> listar() {
+        return jdbc.query("SELECT * FROM profissional ORDER BY nome", ProfissionalRepository::map);
     }
 
     public long contar() {
@@ -63,15 +44,6 @@ public class ProfissionalRepository {
                 """, id, nome, tipo.name(), numero, uf, papel.name(), email, senhaHash);
     }
 
-    public void registrarFalha(UUID id, int tentativas, OffsetDateTime bloqueadoAte) {
-        jdbc.update("UPDATE profissional SET tentativas_falhas = ?, bloqueado_ate = ? WHERE id = ?",
-                tentativas, bloqueadoAte, id);
-    }
-
-    public void limparFalhas(UUID id) {
-        jdbc.update("UPDATE profissional SET tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = ?", id);
-    }
-
     private static Profissional map(ResultSet rs, int i) throws SQLException {
         return new Profissional(
                 rs.getObject("id", UUID.class),
@@ -82,8 +54,6 @@ public class ProfissionalRepository {
                 Papel.valueOf(rs.getString("papel")),
                 rs.getString("email"),
                 rs.getString("senha_hash"),
-                rs.getInt("tentativas_falhas"),
-                rs.getObject("bloqueado_ate", OffsetDateTime.class),
                 rs.getBoolean("ativo"));
     }
 }

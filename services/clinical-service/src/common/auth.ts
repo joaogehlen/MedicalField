@@ -59,7 +59,7 @@ export class JwtAuthGuard implements CanActivate {
     if (!claims) {
       throw new ApiError(HttpStatus.UNAUTHORIZED, 'NAO_AUTENTICADO', 'Não autenticado', 'Token ausente, inválido ou expirado.');
     }
-    req.usuario = { id: claims.sub, nome: claims.nome, papel: claims.papel, registro: claims.registro };
+    req.usuario = { id: claims.sub, nome: claims.nome, papel: claims.papel };
 
     const papeis = this.reflector.getAllAndOverride<Papel[] | undefined>(PAPEIS_KEY, [ctx.getHandler(), ctx.getClass()]);
     if (papeis && !papeis.includes(claims.papel)) {

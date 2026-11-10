@@ -17,12 +17,7 @@ public final class AuthDtos {
             @NotNull(message = "informe o tipo de registro") TipoRegistro tipoRegistro,
             @NotBlank(message = "informe o número do registro") @Size(max = 20) String numeroRegistro,
             @Pattern(regexp = "^[A-Za-z]{2}$", message = "UF com 2 letras") String uf,
-            @NotBlank(message = "informe a senha") @Size(max = 200) String senha,
-            @Size(max = 64) String dispositivoId) {}
-
-    public record RefreshRequest(@NotBlank String refreshToken, @Size(max = 64) String dispositivoId) {}
-
-    public record LogoutRequest(@NotBlank String refreshToken) {}
+            @NotBlank(message = "informe a senha") @Size(max = 200) String senha) {}
 
     public record ProfissionalDto(UUID id, String nome, TipoRegistro tipoRegistro, String numeroRegistro, String uf,
                                   Papel papel, String email, boolean ativo) {
@@ -32,5 +27,5 @@ public final class AuthDtos {
         }
     }
 
-    public record LoginResponse(String accessToken, long expiresIn, String refreshToken, ProfissionalDto profissional) {}
+    public record LoginResponse(String accessToken, long expiresIn, ProfissionalDto profissional) {}
 }

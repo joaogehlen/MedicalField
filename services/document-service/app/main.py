@@ -13,7 +13,7 @@ from .routers import router
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("document-service")
 
-app = FastAPI(title="MedicalField document-service", version="1.0.0", docs_url="/docs", redoc_url=None)
+app = FastAPI(title="MedicalField document-service", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None)
 app.middleware("http")(access_log.middleware)
 app.include_router(router)
 
@@ -46,4 +46,4 @@ def _http(request: Request, e: StarletteHTTPException):
 @app.exception_handler(Exception)
 def _inesperado(request: Request, e: Exception):
     log.exception("Erro inesperado em %s %s", request.method, request.url.path)
-    return problem(request, 500, "ERRO_INTERNO", "Erro interno", "Falha inesperada. Informe o requestId ao suporte.")
+    return problem(request, 500, "ERRO_INTERNO", "Erro interno", "Falha inesperada no servidor.")

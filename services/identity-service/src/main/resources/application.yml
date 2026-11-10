@@ -23,19 +23,13 @@ spring:
   main:
     banner-mode: off
 
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /docs
-
 medicalfield:
   jwt:
     issuer: medicalfield-identity
     private-key-path: ${JWT_PRIVATE_KEY_PATH:/etc/medicalfield/jwt-private.pem}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:/etc/medicalfield/jwt-public.pem}
-    access-ttl-seconds: ${JWT_ACCESS_TTL:900}
-    refresh-ttl-seconds: ${JWT_REFRESH_TTL:43200}
+    # 12 h: um plantão inteiro sem precisar entrar de novo.
+    access-ttl-seconds: ${JWT_ACCESS_TTL:43200}
   seed:
     # Senha dos profissionais de demonstração criados quando a tabela está vazia.
     senha: ${MEDICALFIELD_SEED_SENHA:medicalfield}

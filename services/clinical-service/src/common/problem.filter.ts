@@ -26,7 +26,7 @@ export class ProblemFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let codigo = 'ERRO_INTERNO';
     let titulo = 'Erro interno';
-    let detalhe = 'Falha inesperada. Informe o requestId ao suporte.';
+    let detalhe = 'Falha inesperada no servidor.';
     let extras: Record<string, unknown> = {};
 
     if (err instanceof ApiError) {
@@ -57,7 +57,6 @@ export class ProblemFilter implements ExceptionFilter {
         status,
         detail: detalhe,
         codigo,
-        requestId: req.requestId,
         ...extras,
       });
   }

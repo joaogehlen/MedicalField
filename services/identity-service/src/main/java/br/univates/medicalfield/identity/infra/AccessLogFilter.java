@@ -15,16 +15,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerMapping;
 
 /**
- * Interceptor de auditoria (LGPD): registra toda requisição HTTP com data/hora, IP do
- * cliente, profissional autenticado, método, rota, status e tempo de processamento.
- * Roda antes do Spring Security para registrar também os 401/403.
+ * Interceptor de log de acesso (LGPD): data/hora, IP do cliente, profissional
+ * autenticado, método, rota, status e tempo de processamento de cada requisição.
+ * Roda antes do Spring Security para registrar também os 401.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class AccessLogFilter extends OncePerRequestFilter {
 
     public static final String ATTR_PROFISSIONAL = "mf.profissionalId";
-    public static final String ATTR_REQUEST_ID = "mf.requestId";
 
     private final AccessLogWriter writer;
 
@@ -37,29 +36,20 @@ public class AccessLogFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         long inicio = System.nanoTime();
         OffsetDateTime dataHora = OffsetDateTime.now(ZoneOffset.UTC);
-        String requestId = req.getHeader("X-Request-Id");
-        if (requestId == null || requestId.isBlank() || requestId.length() > 64) {
-            requestId = UUID.randomUUID().toString();
-        }
-        req.setAttribute(ATTR_REQUEST_ID, requestId);
-        res.setHeader("X-Request-Id", requestId);
         try {
             chain.doFilter(req, res);
         } finally {
-            double ms = (System.nanoTime() - inicio) / 1_000_000.0;
-            Object padrao = req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+            Object rota = req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
             Object prof = req.getAttribute(ATTR_PROFISSIONAL);
+            String xff = req.getHeader("X-Forwarded-For");
             writer.registrar(new AccessLogWriter.Entrada(
                     dataHora,
-                    requestId,
-                    ClientIp.of(req),
+                    xff != null && !xff.isBlank() ? xff.split(",")[0].trim() : req.getRemoteAddr(),
                     prof instanceof UUID u ? u : null,
                     req.getMethod(),
-                    padrao != null ? padrao.toString() : req.getRequestURI(),
-                    req.getRequestURI(),
+                    rota != null ? rota.toString() : req.getRequestURI(),
                     res.getStatus(),
-                    Math.round(ms * 100.0) / 100.0,
-                    req.getHeader("User-Agent")));
+                    Math.round((System.nanoTime() - inicio) / 10_000.0) / 100.0));
         }
     }
 }

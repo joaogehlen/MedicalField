@@ -1,28 +1,22 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import type { NextFunction, Response } from 'express';
-import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '../db/database.service';
 import type { MfRequest } from './request';
 
 interface Entrada {
   dataHora: Date;
-  requestId: string;
   ipCliente: string | null;
   profissionalId: string | null;
   metodo: string;
   rota: string;
-  caminho: string;
   statusCode: number;
   tempoMs: number;
-  userAgent: string | null;
 }
 
-const corta = (s: string | null | undefined, max: number) => (s ? s.slice(0, max) : null);
-
 /**
- * Interceptor de auditoria (LGPD). Registra cada requisição HTTP: data/hora, IP do
- * cliente, profissional autenticado, método, rota, status e tempo em ms. A requisição
- * só enfileira; a gravação no banco é em lote. Cada linha também sai no stdout (JSON).
+ * Middleware de log de acesso (LGPD): data/hora, IP do cliente, profissional
+ * autenticado, método, rota, status e tempo de processamento. A requisição só
+ * enfileira; a gravação no banco é feita em lote.
  */
 @Injectable()
 export class AccessLogService implements OnModuleDestroy {
@@ -32,68 +26,42 @@ export class AccessLogService implements OnModuleDestroy {
 
   constructor(private readonly db: DatabaseService) {}
 
-  /** Middleware Express, registrado em main.ts antes de todas as rotas. */
   readonly middleware = (req: MfRequest, res: Response, next: NextFunction) => {
     const inicio = process.hrtime.bigint();
     const dataHora = new Date();
-    const recebido = req.header('x-request-id');
-    req.requestId = recebido && recebido.length <= 64 ? recebido : randomUUID();
-    res.setHeader('X-Request-Id', req.requestId);
     res.on('finish', () => {
-      const tempoMs = Math.round(Number(process.hrtime.bigint() - inicio) / 10_000) / 100;
       const xff = req.header('x-forwarded-for');
-      const padrao = req.route?.path ? `${req.baseUrl ?? ''}${req.route.path}` : null;
-      this.registrar({
+      const e: Entrada = {
         dataHora,
-        requestId: req.requestId!,
-        ipCliente: xff ? xff.split(',')[0].trim() : (req.socket.remoteAddress ?? null),
+        ipCliente: (xff ? xff.split(',')[0].trim() : req.socket.remoteAddress) ?? null,
         profissionalId: req.usuario?.id ?? null,
         metodo: req.method,
-        rota: padrao ?? req.path,
-        caminho: req.originalUrl.split('?')[0],
+        rota: req.route?.path ?? req.path,
         statusCode: res.statusCode,
-        tempoMs,
-        userAgent: req.header('user-agent') ?? null,
-      });
+        tempoMs: Math.round(Number(process.hrtime.bigint() - inicio) / 10_000) / 100,
+      };
+      this.log.log(JSON.stringify(e));
+      if (this.fila.length < 10_000) this.fila.push(e);
     });
     next();
   };
-
-  private registrar(e: Entrada) {
-    this.log.log(
-      JSON.stringify({
-        servico: 'clinical-service',
-        data_hora: e.dataHora.toISOString(),
-        request_id: e.requestId,
-        ip_cliente: e.ipCliente,
-        profissional_id: e.profissionalId,
-        metodo: e.metodo,
-        rota: e.rota,
-        status_code: e.statusCode,
-        tempo_ms: e.tempoMs,
-      }),
-    );
-    if (this.fila.length < 10_000) this.fila.push(e);
-  }
 
   private async persistir() {
     if (this.fila.length === 0) return;
     const lote = this.fila.splice(0, 500);
     const valores: unknown[] = [];
     const linhas = lote.map((e, i) => {
-      const b = i * 10;
-      valores.push(e.dataHora, e.requestId, corta(e.ipCliente, 64), e.profissionalId, e.metodo, corta(e.rota, 200),
-        corta(e.caminho, 500), e.statusCode, e.tempoMs, corta(e.userAgent, 300));
-      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10})`;
+      valores.push(e.dataHora, e.ipCliente, e.profissionalId, e.metodo, e.rota.slice(0, 200), e.statusCode, e.tempoMs);
+      const b = i * 7;
+      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7})`;
     });
     try {
       await this.db.query(
-        `INSERT INTO access_log (data_hora, request_id, ip_cliente, profissional_id, metodo, rota, caminho, status_code, tempo_ms, user_agent)
-         VALUES ${linhas.join(',')}`,
+        `INSERT INTO access_log (data_hora, ip_cliente, profissional_id, metodo, rota, status_code, tempo_ms) VALUES ${linhas.join(',')}`,
         valores,
       );
     } catch (err) {
-      this.log.error(`Falha ao persistir ${lote.length} entradas de access log: ${(err as Error).message}`);
+      this.log.error(`Falha ao gravar log de acesso: ${(err as Error).message}`);
     }
   }
 
