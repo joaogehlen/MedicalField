@@ -1,124 +1,82 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, FilePlus2, Pencil } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { local } from '../../data/repositories';
-import { SeloOffline, SeloSync } from '../components/Selos';
-import { TagTriagem } from '../components/Triagem';
+import { SeloSync, TagTriagem } from '../components';
 import { fmtCpf, fmtData, fmtDataHora, idade } from '../format';
 
 const SEXO = { M: 'Masculino', F: 'Feminino', O: 'Outro' } as const;
 
 export function Paciente() {
   const { id = '' } = useParams();
-  const navegar = useNavigate();
   const dados = useLiveQuery(async () => {
-    const pessoa = await local.pessoas.buscar(id);
-    if (!pessoa) return { pessoa: null };
-    const [prontuario, atendimentos] = await Promise.all([local.prontuarios.daPessoa(pessoa.mescladaEm ?? id), local.atendimentos.daPessoa(pessoa.mescladaEm ?? id)]);
+    const [pessoa, prontuario, atendimentos] = await Promise.all([local.pessoas.buscar(id), local.prontuarios.daPessoa(id), local.atendimentos.daPessoa(id)]);
     return { pessoa, prontuario, atendimentos };
   }, [id]);
-
-  if (!dados) return <div className="pagina"><div className="esqueleto" style={{ height: 200 }} /></div>;
-  if (!dados.pessoa) return <div className="pagina"><div className="vazio"><strong>Paciente não encontrado neste aparelho.</strong></div></div>;
-  const { pessoa, prontuario, atendimentos = [] } = dados;
+  if (!dados) return null;
+  const { pessoa, prontuario, atendimentos } = dados;
+  if (!pessoa) return <div className="alert alert-secondary">Paciente não encontrado neste aparelho.</div>;
 
   return (
-    <div className="pagina">
-      <div className="pagina-cabeca">
+    <>
+      <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div>
-          <h1>{pessoa.nome}</h1>
-          <p className="subtitulo">
-            {pessoa.identificada ? <span className="mono">{fmtCpf(pessoa.cpf)}</span> : 'Vítima não identificada'}
-            {idade(pessoa.dataNascimento) && ` · ${idade(pessoa.dataNascimento)}`}
-          </p>
+          <h1 className="h3 mb-1">{pessoa.nome}</h1>
+          <div className="text-secondary font-monospace">{fmtCpf(pessoa.cpf)}{idade(pessoa.dataNascimento) ? ` · ${idade(pessoa.dataNascimento)}` : ''}</div>
         </div>
-        <SeloSync status={pessoa.syncStatus} erro={pessoa.syncErro} />
+        <div className="d-flex gap-2 flex-wrap">
+          <Link to={`/paciente/${pessoa.id}/editar`} className="btn btn-outline-secondary"><i className="bi bi-pencil me-1" />Dados</Link>
+          <Link to={`/paciente/${pessoa.id}/prontuario`} className="btn btn-outline-secondary"><i className="bi bi-journal-medical me-1" />{prontuario ? 'Prontuário' : 'Abrir prontuário'}</Link>
+          {prontuario && <Link to={`/paciente/${pessoa.id}/atendimento`} className="btn btn-primary"><i className="bi bi-plus-lg me-1" />Novo atendimento</Link>}
+        </div>
       </div>
 
-      {prontuario ? (
-        prontuario.alergias.length > 0 ? (
-          <div className="alergias">
-            <b>Alergias</b> {prontuario.alergias.join(' · ')}
+      {prontuario?.alergias.length ? <div className="alergias mb-3"><i className="bi bi-exclamation-octagon-fill" />Alergias: {prontuario.alergias.join(', ')}</div> : null}
+
+      <div className="row g-3 mb-4">
+        <div className="col-md-6">
+          <div className="card h-100">
+            <div className="card-header d-flex justify-content-between">Identificação <SeloSync status={pessoa.syncStatus} offline={pessoa.criadoOffline} /></div>
+            <div className="card-body row g-3 small">
+              <div className="col-6"><div className="text-secondary">Nascimento</div><div className="fw-bold">{fmtData(pessoa.dataNascimento)}</div></div>
+              <div className="col-6"><div className="text-secondary">Sexo</div><div className="fw-bold">{pessoa.sexo ? SEXO[pessoa.sexo] : '—'}</div></div>
+              <div className="col-6"><div className="text-secondary">Telefone</div><div className="fw-bold">{pessoa.telefone ?? '—'}</div></div>
+              <div className="col-6"><div className="text-secondary">E-mail</div><div className="fw-bold text-break">{pessoa.email ?? '—'}</div></div>
+              <div className="col-12"><div className="text-secondary">Contato (familiar)</div><div className="fw-bold">{[pessoa.contatoNome, pessoa.contatoEmail].filter(Boolean).join(' · ') || '—'}</div></div>
+            </div>
           </div>
-        ) : (
-          <p className="nota">Nenhuma alergia registrada.</p>
-        )
-      ) : null}
-
-      <div className="acoes-principais">
-        {prontuario ? (
-          <button type="button" className="btn btn-primario btn-grande" onClick={() => navegar(`/paciente/${pessoa.id}/atendimento/novo`)}>
-            <FilePlus2 aria-hidden /> Novo atendimento
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primario btn-grande" onClick={() => navegar(`/paciente/${pessoa.id}/prontuario`)}>
-            <FilePlus2 aria-hidden /> Abrir prontuário
-          </button>
-        )}
+        </div>
+        <div className="col-md-6">
+          <div className="card h-100">
+            <div className="card-header">Prontuário</div>
+            <div className="card-body small">
+              {prontuario ? (
+                <div className="row g-3">
+                  <div className="col-6"><div className="text-secondary">Tipo sanguíneo</div><div className="fw-bold">{prontuario.tipoSanguineo ?? '—'}</div></div>
+                  <div className="col-6"><div className="text-secondary">Comorbidades</div><div className="fw-bold">{prontuario.comorbidades.join(', ') || '—'}</div></div>
+                  {prontuario.observacoes && <div className="col-12"><div className="text-secondary">Observações</div><div className="fw-bold">{prontuario.observacoes}</div></div>}
+                </div>
+              ) : (
+                <p className="text-secondary mb-0">Ainda sem prontuário. Abra o prontuário para registrar atendimentos.</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <section className="painel bloco">
-        <div className="secao-titulo">
-          <h2>Identificação</h2>
-          <Link to={`/paciente/${pessoa.id}/editar`} className="btn btn-fantasma">
-            <Pencil aria-hidden /> Editar
-          </Link>
-        </div>
-        <dl className="dados">
-          <div><dt>Nascimento</dt><dd className="mono">{fmtData(pessoa.dataNascimento)}</dd></div>
-          <div><dt>Sexo</dt><dd>{pessoa.sexo ? SEXO[pessoa.sexo] : '—'}</dd></div>
-          <div><dt>Telefone</dt><dd className="mono">{pessoa.telefone ?? '—'}</dd></div>
-          <div><dt>E-mail</dt><dd>{pessoa.email ?? '—'}</dd></div>
-          <div><dt>Contato</dt><dd>{[pessoa.contatoNome, pessoa.contatoParentesco].filter(Boolean).join(' · ') || '—'}</dd></div>
-          <div><dt>Telefone do contato</dt><dd className="mono">{pessoa.contatoTelefone ?? '—'}</dd></div>
-          {pessoa.caracteristicas && <div className="largo"><dt>Características</dt><dd>{pessoa.caracteristicas}</dd></div>}
-        </dl>
-      </section>
-
-      {prontuario && (
-        <section className="painel bloco">
-          <div className="secao-titulo">
-            <h2>Prontuário</h2>
-            <Link to={`/paciente/${pessoa.id}/prontuario`} className="btn btn-fantasma">
-              <Pencil aria-hidden /> Editar
+      <h2 className="h5">Atendimentos</h2>
+      {atendimentos.length === 0 ? (
+        <p className="text-secondary">Nenhum atendimento registrado.</p>
+      ) : (
+        <div className="list-group shadow-sm">
+          {atendimentos.map((a) => (
+            <Link key={a.id} to={`/atendimento/${a.id}`} className="list-group-item list-group-item-action d-flex flex-wrap align-items-center gap-3 py-3">
+              <TagTriagem triagem={a.triagem} />
+              <div className="flex-grow-1"><div className="fw-bold">{a.queixaPrincipal}</div><div className="small text-secondary font-monospace">{fmtDataHora(a.dataHora)}</div></div>
+              <SeloSync status={a.syncStatus} offline={a.criadoOffline} />
             </Link>
-          </div>
-          <dl className="dados">
-            <div><dt>Tipo sanguíneo</dt><dd>{prontuario.tipoSanguineo ?? '—'}</dd></div>
-            <div><dt>Comorbidades</dt><dd>{prontuario.comorbidades.join(', ') || '—'}</dd></div>
-            <div><dt>Uso contínuo</dt><dd>{prontuario.medicamentosUsoContinuo.join(', ') || '—'}</dd></div>
-            {prontuario.observacoes && <div className="largo"><dt>Observações</dt><dd>{prontuario.observacoes}</dd></div>}
-          </dl>
-        </section>
+          ))}
+        </div>
       )}
-
-      <section>
-        <h2 className="grupo-titulo">Atendimentos</h2>
-        {atendimentos.length === 0 ? (
-          <p className="nota">Nenhum atendimento registrado para este paciente.</p>
-        ) : (
-          <ul className="lista-ocorrencias">
-            {atendimentos.map((a) => (
-              <li key={a.id}>
-                <Link to={`/atendimento/${a.id}`} className="ocorrencia">
-                  <TagTriagem triagem={a.triagem} />
-                  <div className="ocorrencia-texto">
-                    <strong>{a.queixaPrincipal}</strong>
-                    <span className="mono">{fmtDataHora(a.iniciadoEm)}</span>
-                  </div>
-                  <div className="ocorrencia-meta">
-                    <div className="selos">
-                      {a.criadoOffline && <SeloOffline />}
-                      <SeloSync status={a.syncStatus} erro={a.syncErro} />
-                    </div>
-                  </div>
-                  <ChevronRight aria-hidden className="seta" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
+    </>
   );
 }

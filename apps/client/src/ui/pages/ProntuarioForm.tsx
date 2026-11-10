@@ -4,108 +4,65 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { TIPOS_SANGUINEOS } from '@medicalfield/shared';
 import { local } from '../../data/repositories';
 import { novoId, salvarProntuario } from '../../services/registro';
-import { errosPorCampo, ResumoErros } from '../components/Erros';
-import { Etapas } from '../components/Etapas';
-import { Termos } from '../components/Termos';
-
-const ALERGIAS = ['Dipirona', 'Penicilina', 'AAS', 'Látex', 'Iodo', 'Frutos do mar'];
-const COMORBIDADES = ['Hipertensão arterial', 'Diabetes tipo 2', 'Asma', 'DPOC', 'Insuficiência cardíaca', 'Epilepsia'];
+import { Erros, Etapas, mensagensDoErro, Termos } from '../components';
 
 export function ProntuarioForm() {
   const { id: pessoaId = '' } = useParams();
-  const [params] = useSearchParams();
-  const fluxo = params.get('fluxo') === 'nova';
+  const nova = useSearchParams()[0].get('nova') === '1';
   const navegar = useNavigate();
-  const dados = useLiveQuery(async () => ({
-    pessoa: await local.pessoas.buscar(pessoaId),
-    prontuario: await local.prontuarios.daPessoa(pessoaId),
-  }), [pessoaId]);
-
-  const [tipo, setTipo] = useState<string | null>(null);
+  const dados = useLiveQuery(async () => ({ pessoa: await local.pessoas.buscar(pessoaId), prontuario: await local.prontuarios.daPessoa(pessoaId) }), [pessoaId]);
+  const [tipo, setTipo] = useState('');
   const [alergias, setAlergias] = useState<string[]>([]);
   const [comorbidades, setComorbidades] = useState<string[]>([]);
-  const [usoContinuo, setUsoContinuo] = useState<string[]>([]);
   const [observacoes, setObservacoes] = useState('');
-  const [erros, setErros] = useState<Record<string, string>>({});
-  const [salvando, setSalvando] = useState(false);
+  const [erros, setErros] = useState<string[]>([]);
 
   useEffect(() => {
     const p = dados?.prontuario;
     if (!p) return;
-    setTipo(p.tipoSanguineo ?? null);
+    setTipo(p.tipoSanguineo ?? '');
     setAlergias(p.alergias);
     setComorbidades(p.comorbidades);
-    setUsoContinuo(p.medicamentosUsoContinuo);
     setObservacoes(p.observacoes ?? '');
   }, [dados?.prontuario]);
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
-    setSalvando(true);
     try {
-      await salvarProntuario({
-        id: dados?.prontuario?.id ?? novoId(),
-        pessoaId,
-        tipoSanguineo: tipo,
-        alergias,
-        comorbidades,
-        medicamentosUsoContinuo: usoContinuo,
-        observacoes,
-      });
-      navegar(fluxo ? `/paciente/${pessoaId}/atendimento/novo?fluxo=nova` : `/paciente/${pessoaId}`);
+      await salvarProntuario({ id: dados?.prontuario?.id ?? novoId(), pessoaId, tipoSanguineo: tipo || null, alergias, comorbidades, observacoes });
+      navegar(nova ? `/paciente/${pessoaId}/atendimento?nova=1` : `/paciente/${pessoaId}`);
     } catch (err) {
-      setErros(errosPorCampo(err));
-    } finally {
-      setSalvando(false);
+      setErros(mensagensDoErro(err));
     }
   }
 
   if (!dados) return null;
   return (
-    <div className="pagina pagina-form">
-      {fluxo && <Etapas atual={1} />}
-      <h1>Prontuário de {dados.pessoa?.nome ?? 'paciente'}</h1>
-      <form onSubmit={salvar} className="form-pilha" noValidate>
-        <ResumoErros erros={erros} />
-
-        <Termos
-          rotulo="Alergias"
-          valor={alergias}
-          onChange={setAlergias}
-          sugestoes={ALERGIAS}
-          placeholder="Digite e tecle Enter"
-          ajuda="As alergias são checadas antes de qualquer medicamento — mesmo sem conexão."
-        />
-
-        <fieldset className="segmentos">
-          <legend>Tipo sanguíneo <span className="opcional">(se informado)</span></legend>
-          {TIPOS_SANGUINEOS.map((t) => (
-            <label key={t} className="segmento">
-              <input type="radio" name="tipo" checked={tipo === t} onChange={() => setTipo(t)} />
-              <span>{t}</span>
-            </label>
-          ))}
-          <label className="segmento">
-            <input type="radio" name="tipo" checked={tipo === null} onChange={() => setTipo(null)} />
-            <span>Não sabe</span>
-          </label>
-        </fieldset>
-
-        <Termos rotulo="Comorbidades" valor={comorbidades} onChange={setComorbidades} sugestoes={COMORBIDADES} placeholder="Ex.: Hipertensão arterial" />
-        <Termos rotulo="Medicamentos de uso contínuo" valor={usoContinuo} onChange={setUsoContinuo} placeholder="Ex.: Losartana 50 mg" />
-
-        <div className="campo">
-          <label htmlFor="obs">Observações <span className="opcional">(opcional)</span></label>
-          <textarea id="obs" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Marcapasso, gestação, prótese…" />
+    <div className="mx-auto" style={{ maxWidth: 760 }}>
+      {nova && <Etapas atual={1} />}
+      <h1 className="h3 mb-1">Prontuário</h1>
+      <p className="text-secondary mb-3">{dados.pessoa?.nome}</p>
+      <Erros lista={erros} />
+      <form className="card" onSubmit={salvar} noValidate>
+        <div className="card-body d-grid gap-4">
+          <div className="alert alert-light border mb-0 small"><i className="bi bi-shield-check text-primary me-1" />As alergias são conferidas antes de cada medicamento, mesmo sem conexão.</div>
+          <Termos id="alergias" rotulo="Alergias" valor={alergias} onChange={setAlergias} sugestoes={['Dipirona', 'Penicilina', 'AAS', 'Látex', 'Iodo']} />
+          <div>
+            <label className="form-label" htmlFor="tipo">Tipo sanguíneo</label>
+            <select id="tipo" className="form-select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              <option value="">Não informado</option>
+              {TIPOS_SANGUINEOS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <Termos id="comorbidades" rotulo="Comorbidades" valor={comorbidades} onChange={setComorbidades} sugestoes={['Hipertensão arterial', 'Diabetes tipo 2', 'Asma', 'Insuficiência cardíaca']} />
+          <div>
+            <label className="form-label" htmlFor="obs">Observações</label>
+            <textarea id="obs" className="form-control" rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Marcapasso, gestação, prótese…" />
+          </div>
         </div>
-
-        <div className="barra-acoes">
-          <button type="button" className="btn btn-grande" onClick={() => navegar(`/paciente/${pessoaId}`)}>
-            {fluxo ? 'Depois' : 'Cancelar'}
-          </button>
-          <button type="submit" className="btn btn-primario btn-grande" data-carregando={salvando}>
-            {fluxo ? 'Continuar para o atendimento' : 'Salvar prontuário'}
-          </button>
+        <div className="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+          <button type="button" className="btn btn-light border" onClick={() => navegar(`/paciente/${pessoaId}`)}>Cancelar</button>
+          <button type="submit" className="btn btn-primary">{nova ? 'Continuar' : 'Salvar'} <i className="bi bi-arrow-right" /></button>
         </div>
       </form>
     </div>

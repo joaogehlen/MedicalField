@@ -1,23 +1,14 @@
-import { AlertTriangle } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { Fragment, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { LoginRequest, LoginResponse, TipoRegistro } from '@medicalfield/shared';
-import { api, ApiError, dispositivoId, NetworkUnavailableError } from '../../api/client';
-import { guardarCredencial, sessao, validarOffline } from '../../auth/session';
-import { registrarLog } from '../../services/logs';
+import type { LoginResponse, TipoRegistro } from '@medicalfield/shared';
+import { api } from '../../api/client';
+import { sessao } from '../../auth/session';
 import { syncEngine } from '../../sync/engine';
-import { network } from '../../sync/network';
-import { ChaveRede } from '../components/Casca';
-import { useRede } from '../hooks';
-
-const TIPOS: { valor: TipoRegistro; rotulo: string; exemplo: string }[] = [
-  { valor: 'CRM', rotulo: 'CRM', exemplo: 'Médico' },
-  { valor: 'COREN', rotulo: 'COREN', exemplo: 'Enfermagem' },
-  { valor: 'SOCORRISTA', rotulo: 'ID Socorrista', exemplo: 'Resgate' },
-];
+import { fotoLogin } from '../imagens';
+import { Marca } from '../components';
+import { ChaveRede } from '../Layout';
 
 export function Entrar() {
-  const rede = useRede();
   const navegar = useNavigate();
   const [tipo, setTipo] = useState<TipoRegistro>('CRM');
   const [numero, setNumero] = useState('');
@@ -25,110 +16,77 @@ export function Entrar() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const precisaUf = tipo !== 'SOCORRISTA';
 
-  async function entrarOffline(req: LoginRequest) {
-    const r = await validarOffline(req);
-    if (!r.ok) {
-      setErro(r.motivo);
-      return;
-    }
-    sessao.definir({ profissional: r.profissional, accessToken: null, refreshToken: r.refreshToken, expiraEm: null, modo: 'OFFLINE' });
-    await registrarLog('LOGIN_OFFLINE', 'PROFISSIONAL', r.profissional.id);
-    navegar('/');
-  }
-
-  async function enviar(e: FormEvent) {
+  async function entrar(e: FormEvent) {
     e.preventDefault();
     setErro(null);
     setEnviando(true);
-    const req: LoginRequest = { tipoRegistro: tipo, numeroRegistro: numero.trim(), uf: precisaUf ? uf : null, senha, dispositivoId: dispositivoId() };
     try {
-      if (!network.isOnline()) {
-        await entrarOffline(req);
-        return;
-      }
-      const r = await api<LoginResponse>('POST', '/auth/login', req, { semAuth: true });
-      sessao.aplicarLogin(r);
-      await guardarCredencial(req, r);
-      await registrarLog('LOGIN_ONLINE', 'PROFISSIONAL', r.profissional.id);
+      const r = await api<LoginResponse>('POST', '/auth/login', { tipoRegistro: tipo, numeroRegistro: numero.trim(), uf: tipo === 'SOCORRISTA' ? null : uf, senha });
+      sessao.entrar(r);
       void syncEngine.sincronizar();
       navegar('/');
     } catch (err) {
-      if (err instanceof NetworkUnavailableError) await entrarOffline(req);
-      else if (err instanceof ApiError) setErro(err.message);
-      else setErro('Não foi possível entrar. Tente novamente.');
+      setErro(err instanceof Error ? err.message : 'Não foi possível entrar.');
     } finally {
       setEnviando(false);
     }
   }
 
   return (
-    <div className="tela-entrar" data-online={rede.online}>
-      <header className="casca casca-entrar">
-        <div className="casca-linha">
-          <div className="marca">
-            <svg viewBox="0 0 24 24" aria-hidden className="marca-cruz">
-              <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z" />
-            </svg>
-            <span>MedicalField</span>
-          </div>
-          <div className="casca-acoes">
-            <ChaveRede />
+    <div className="container-fluid p-0">
+      <div className="row g-0 min-vh-100">
+        <div className="col-lg-7 login-foto">
+          <img src={fotoLogin.src} alt={fotoLogin.alt} className="foto-cover" />
+          <div className="legenda">
+            <h1 className="display-6 mb-2">Ficha de atendimento que não espera a rede.</h1>
+            <p className="lead mb-3 opacity-75">Registre sinais vitais, triagem e medicamentos no local da ocorrência. Quando o sinal voltar, tudo segue para a central.</p>
+            <p className="credito mb-0">Foto: {fotoLogin.credito}</p>
           </div>
         </div>
-        <div className="faixa-refletiva" aria-hidden />
-      </header>
-
-      <main className="entrar-corpo">
-        <div className="entrar-cabeca">
-          <h1>Entrar no plantão</h1>
-          <p>Use o registro profissional. {rede.online ? 'Com conexão, o aparelho também fica liberado para entrar offline.' : 'Sem conexão: só entra quem já acessou este aparelho antes.'}</p>
-        </div>
-
-        <form className="painel entrar-form" onSubmit={enviar} noValidate>
-          <fieldset className="segmentos">
-            <legend>Tipo de registro</legend>
-            {TIPOS.map((t) => (
-              <label key={t.valor} className="segmento">
-                <input type="radio" name="tipo" value={t.valor} checked={tipo === t.valor} onChange={() => setTipo(t.valor)} />
-                <span>
-                  {t.rotulo} <small>{t.exemplo}</small>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-
-          <div className={precisaUf ? 'linha-2-1' : ''}>
-            <div className="campo">
-              <label htmlFor="numero">Número do {tipo === 'SOCORRISTA' ? 'ID' : tipo}</label>
-              <input id="numero" className="mono" inputMode="numeric" autoComplete="username" value={numero} onChange={(e) => setNumero(e.target.value)} required />
+        <div className="col-lg-5 d-flex align-items-center bg-white">
+          <form className="w-100 p-4 p-md-5" style={{ maxWidth: 480, margin: '0 auto' }} onSubmit={entrar} noValidate>
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <Marca />
+              <ChaveRede />
             </div>
-            {precisaUf && (
-              <div className="campo">
-                <label htmlFor="uf">UF</label>
-                <input id="uf" className="mono" maxLength={2} value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} required />
+            <h2 className="h3 mb-1">Entrar no plantão</h2>
+            <p className="text-secondary mb-4">Use seu registro profissional.</p>
+
+            <label className="form-label">Tipo de registro</label>
+            <div className="btn-group w-100 mb-3" role="group">
+              {(['CRM', 'COREN', 'SOCORRISTA'] as const).map((t) => (
+                <Fragment key={t}>
+                  <input type="radio" className="btn-check" name="tipo" id={`tipo-${t}`} checked={tipo === t} onChange={() => setTipo(t)} />
+                  <label className="btn btn-outline-primary" htmlFor={`tipo-${t}`}>{t === 'SOCORRISTA' ? 'Socorrista' : t}</label>
+                </Fragment>
+              ))}
+            </div>
+
+            <div className="row g-3 mb-3">
+              <div className={tipo === 'SOCORRISTA' ? 'col-12' : 'col-8'}>
+                <label className="form-label" htmlFor="numero">Número</label>
+                <input id="numero" className="form-control form-control-lg font-monospace" inputMode="numeric" value={numero} onChange={(e) => setNumero(e.target.value)} />
               </div>
-            )}
-          </div>
-
-          <div className="campo">
-            <label htmlFor="senha">Senha</label>
-            <input id="senha" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
-          </div>
-
-          {erro && (
-            <div className="alerta alerta-erro" role="alert">
-              <AlertTriangle aria-hidden />
-              <p>{erro}</p>
+              {tipo !== 'SOCORRISTA' && (
+                <div className="col-4">
+                  <label className="form-label" htmlFor="uf">UF</label>
+                  <input id="uf" className="form-control form-control-lg font-monospace" maxLength={2} value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} />
+                </div>
+              )}
             </div>
-          )}
+            <div className="mb-4">
+              <label className="form-label" htmlFor="senha">Senha</label>
+              <input id="senha" type="password" className="form-control form-control-lg" value={senha} onChange={(e) => setSenha(e.target.value)} />
+            </div>
 
-          <button type="submit" className="btn btn-primario btn-grande btn-bloco" data-carregando={enviando} disabled={!numero || !senha}>
-            {rede.online ? 'Entrar' : 'Entrar offline'}
-          </button>
-        </form>
-      </main>
+            {erro && <div className="alert alert-danger py-2" role="alert">{erro}</div>}
+            <button type="submit" className="btn btn-primary btn-lg w-100" disabled={!numero || !senha || enviando}>
+              {enviando && <span className="spinner-border spinner-border-sm me-2" />}Entrar
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

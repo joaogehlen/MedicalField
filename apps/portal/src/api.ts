@@ -1,12 +1,10 @@
-/** Cliente HTTP do portal: JWT do administrador, renovação automática e Problem Details. */
+/** Cliente HTTP do portal: guarda o token do administrador e traduz os erros da API. */
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { LoginRequest, LoginResponse, Problem, Profissional } from '@medicalfield/shared';
 
-export interface Sessao {
+interface Sessao {
   profissional: Profissional;
-  accessToken: string;
-  refreshToken: string;
-  expiraEm: number;
+  token: string;
 }
 
 const CHAVE = 'mf.portal.sessao';
@@ -39,113 +37,47 @@ export const useSessao = () =>
     () => atual,
   );
 
-export class ApiError extends Error {
-  constructor(readonly status: number, readonly problem: Problem | null) {
-    super(problem?.detail ?? problem?.title ?? (status === 0 ? 'Sem conexão com o servidor.' : `Erro ${status}`));
-  }
-}
+export const sair = () => definir(null);
 
-const aplicar = (r: LoginResponse) =>
-  definir({ profissional: r.profissional, accessToken: r.accessToken, refreshToken: r.refreshToken, expiraEm: Date.now() + r.expiresIn * 1000 });
-
-async function bruto(metodo: string, rota: string, corpo?: unknown, headers: Record<string, string> = {}) {
+async function requisitar(metodo: string, rota: string, corpo?: unknown): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (corpo !== undefined) headers['Content-Type'] = 'application/json';
+  if (atual) headers.Authorization = `Bearer ${atual.token}`;
+  let r: Response;
   try {
-    return await fetch(`/api${rota}`, {
-      method: metodo,
-      headers: { ...(corpo !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers },
-      body: corpo === undefined ? undefined : JSON.stringify(corpo),
-    });
+    r = await fetch(`/api${rota}`, { method: metodo, headers, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
   } catch {
-    throw new ApiError(0, null);
+    throw new Error('Sem conexão com o servidor.');
   }
-}
-
-async function falha(r: Response): Promise<never> {
-  let p: Problem | null = null;
-  try {
-    p = (await r.json()) as Problem;
-  } catch {
-    if ([502, 503, 504].includes(r.status)) {
-      // O gateway respondeu, mas o serviço por trás dele está fora do ar.
-      p = {
-        title: 'Serviço indisponível',
-        status: r.status,
-        codigo: 'SERVICO_INDISPONIVEL',
-        detail: `O servidor respondeu, mas o serviço desta função não está no ar (erro ${r.status}). Confira se todos os serviços subiram.`,
-      };
-    }
+  if (r.status === 401 && atual) definir(null);
+  if (!r.ok) {
+    const p = (r.headers.get('content-type') ?? '').includes('json') ? ((await r.json()) as Problem) : null;
+    throw new Error(p?.detail ?? p?.title ?? (r.status >= 502 ? `Serviço fora do ar (erro ${r.status}).` : `Erro ${r.status}.`));
   }
-  throw new ApiError(r.status, p);
+  return r;
 }
 
 export async function entrar(req: LoginRequest) {
-  const r = await bruto('POST', '/auth/login', req);
-  if (!r.ok) await falha(r);
-  const dados = (await r.json()) as LoginResponse;
-  if (dados.profissional.papel !== 'ADMIN') {
-    throw new ApiError(403, { title: 'Sem permissão', status: 403, codigo: 'SEM_PERMISSAO', detail: 'O portal é restrito à central de regulação (perfil administrador).' });
-  }
-  aplicar(dados);
+  const dados = (await (await requisitar('POST', '/auth/login', req)).json()) as LoginResponse;
+  if (dados.profissional.papel !== 'ADMIN') throw new Error('O portal é restrito à central de regulação (perfil administrador).');
+  definir({ profissional: dados.profissional, token: dados.accessToken });
 }
 
-export async function sair() {
-  const s = atual;
-  definir(null);
-  if (s) await bruto('POST', '/auth/logout', { refreshToken: s.refreshToken }, { Authorization: `Bearer ${s.accessToken}` }).catch(() => undefined);
-}
+export const api = async <T,>(metodo: string, rota: string, corpo?: unknown) => (await (await requisitar(metodo, rota, corpo)).json()) as T;
+export const baixar = async (rota: string) => (await requisitar('GET', rota)).blob();
 
-async function renovar(): Promise<boolean> {
-  if (!atual) return false;
-  const r = await bruto('POST', '/auth/refresh', { refreshToken: atual.refreshToken });
-  if (!r.ok) return false;
-  aplicar((await r.json()) as LoginResponse);
-  return true;
-}
-
-export async function api<T>(metodo: string, rota: string, corpo?: unknown, opts: { idempotencyKey?: string; blob?: boolean } = {}): Promise<T> {
-  if (!atual) throw new ApiError(401, null);
-  if (atual.expiraEm - Date.now() < 30_000) await renovar();
-  const headers = () => ({
-    Authorization: `Bearer ${atual?.accessToken ?? ''}`,
-    ...(opts.idempotencyKey ? { 'Idempotency-Key': opts.idempotencyKey } : {}),
-  });
-  let r = await bruto(metodo, rota, corpo, headers());
-  if (r.status === 401 && (await renovar())) r = await bruto(metodo, rota, corpo, headers());
-  if (r.status === 401) definir(null);
-  if (!r.ok) await falha(r);
-  if (opts.blob) return (await r.blob()) as T;
-  return (await r.json()) as T;
-}
-
-/** Busca dados de uma rota; `recarregar` refaz a consulta. */
-export function useApi<T>(rota: string | null) {
+/** Carrega uma rota GET. */
+export function useApi<T>(rota: string) {
   const [dados, setDados] = useState<T | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [carregando, setCarregando] = useState(false);
-  const recarregar = useCallback(async () => {
-    if (!rota) return;
-    setCarregando(true);
+  const carregar = useCallback(async () => {
     setErro(null);
     try {
       setDados(await api<T>('GET', rota));
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Falha ao carregar.');
-    } finally {
-      setCarregando(false);
     }
   }, [rota]);
-  useEffect(() => {
-    void recarregar();
-  }, [recarregar]);
-  return { dados, erro, carregando, recarregar };
-}
-
-/** Nome e registro dos profissionais (para "registrado por"). */
-export function useProfissionais() {
-  const { dados } = useApi<Profissional[]>('/profissional');
-  const mapa = new Map((dados ?? []).map((p) => [p.id, p]));
-  return (id?: string | null) => {
-    const p = id ? mapa.get(id) : undefined;
-    return p ? `${p.nome} · ${p.tipoRegistro} ${p.numeroRegistro}${p.uf ? `/${p.uf}` : ''}` : id ? id.slice(0, 8) : '—';
-  };
+  useEffect(() => void carregar(), [carregar]);
+  return { dados, erro };
 }

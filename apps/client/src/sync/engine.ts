@@ -1,62 +1,43 @@
 /**
- * SyncEngine — Observer do NetworkMonitor. Quando a conexão volta, drena a Outbox
- * (push, em ordem FIFO) e depois recebe as mudanças da central (pull por cursor).
+ * SyncEngine — Observer do NetworkMonitor. Quando a conexão volta, envia a Outbox
+ * (em ordem: pessoa → prontuário → atendimento) e os logs do aparelho, e depois
+ * recebe as mudanças da central (pull por cursor).
  */
-import type { LogBatchRequest, PullResponse } from '@medicalfield/shared';
-import { api, ApiError, dispositivoId, NetworkUnavailableError, novoId, SessaoExpiradaError } from '../api/client';
+import type { PullResponse } from '@medicalfield/shared';
+import { api, ApiError, dispositivoId, novoId, SemConexaoError } from '../api/client';
 import { sessao } from '../auth/session';
-import { db, type OperacaoOutbox } from '../data/db';
+import { db } from '../data/db';
 import { registrarLog } from '../services/logs';
 import { comandoPara } from './commands';
 import { network, type NetworkObserver } from './network';
 
 export interface EstadoSync {
-  sincronizando: boolean;
-  fase: 'ENVIANDO' | 'RECEBENDO' | null;
-  ultimaSync: string | null;
+  ocupado: boolean;
+  ultimoEnvio: string | null;
   ultimoRecebimento: string | null;
   erro: string | null;
-  precisaLogin: boolean;
 }
 
-type Ouvinte = (e: EstadoSync) => void;
-
-const INTERVALO_RETENTATIVA = 30_000;
-
 export class SyncEngine implements NetworkObserver {
-  private estado: EstadoSync = {
-    sincronizando: false,
-    fase: null,
-    ultimaSync: null,
-    ultimoRecebimento: null,
-    erro: null,
-    precisaLogin: false,
-  };
-  private ouvintes = new Set<Ouvinte>();
-  private emAndamento: Promise<void> | null = null;
+  private estado: EstadoSync = { ocupado: false, ultimoEnvio: null, ultimoRecebimento: null, erro: null };
+  private ouvintes = new Set<(e: EstadoSync) => void>();
   private online = network.isOnline();
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private fila: Promise<void> = Promise.resolve();
 
   iniciar() {
     network.subscribe(this);
-    void Promise.all([db.lerMeta<string | null>('ultimaSync', null), db.lerMeta<string | null>('ultimoRecebimento', null)]).then(
-      ([ultimaSync, ultimoRecebimento]) => this.definir({ ultimaSync, ultimoRecebimento }),
+    void Promise.all([db.lerMeta<string | null>('ultimoEnvio', null), db.lerMeta<string | null>('ultimoRecebimento', null)]).then(
+      ([ultimoEnvio, ultimoRecebimento]) => this.definir({ ultimoEnvio, ultimoRecebimento }),
     );
-    this.timer ??= setInterval(() => {
-      if (network.isOnline() && sessao.get()) void this.push();
-    }, INTERVALO_RETENTATIVA);
-    if (network.isOnline() && sessao.get()) void this.sincronizar();
   }
 
   get atual() {
     return this.estado;
   }
 
-  subscribe(o: Ouvinte) {
+  subscribe(o: (e: EstadoSync) => void) {
     this.ouvintes.add(o);
-    return () => {
-      this.ouvintes.delete(o);
-    };
+    return () => void this.ouvintes.delete(o);
   }
 
   private definir(p: Partial<EstadoSync>) {
@@ -64,178 +45,91 @@ export class SyncEngine implements NetworkObserver {
     this.ouvintes.forEach((o) => o(this.estado));
   }
 
-  /** Observer: reage à transição offline → online (e registra a troca no log local). */
+  /** Observer: ao passar de offline para online, sincroniza sozinho. */
   onNetworkChange(online: boolean) {
     if (online === this.online) return;
     this.online = online;
-    void registrarLog('REDE_ALTERADA', null, null, { online, simulador: network.simulador });
-    if (online && sessao.get()) void this.sincronizar();
+    void registrarLog(online ? 'REDE_ONLINE' : 'REDE_OFFLINE');
+    if (online) void this.sincronizar();
   }
 
-  /** Chamado após cada gravação local: online, envia na hora. */
+  /** Chamado após cada gravação: estando online, envia na hora. */
   solicitar() {
-    if (network.isOnline() && sessao.get()) void this.push();
+    if (network.isOnline()) void this.enviar();
   }
 
-  /** Envia pendências e depois recebe mudanças. */
-  sincronizar(): Promise<void> {
+  sincronizar() {
     return this.exclusivo(async () => {
-      await this.executarPush();
-      await this.executarPull();
+      await this.executarEnvio();
+      await this.executarRecebimento();
     });
   }
 
-  push(): Promise<void> {
-    return this.exclusivo(() => this.executarPush());
+  enviar() {
+    return this.exclusivo(() => this.executarEnvio());
   }
 
-  /** "Receber dados da central". */
-  pull(): Promise<void> {
-    return this.exclusivo(() => this.executarPull());
+  receber() {
+    return this.exclusivo(() => this.executarRecebimento());
   }
 
-  private async exclusivo(fn: () => Promise<void>): Promise<void> {
-    while (this.emAndamento) await this.emAndamento.catch(() => undefined);
-    this.emAndamento = (async () => {
-      this.definir({ sincronizando: true, erro: null });
+  /** Uma sincronização por vez. */
+  private exclusivo(fn: () => Promise<void>) {
+    this.fila = this.fila.then(async () => {
+      if (!sessao.get()) return;
+      this.definir({ ocupado: true, erro: null });
       try {
         await fn();
       } catch (e) {
-        this.tratarErroGeral(e);
+        if (!(e instanceof SemConexaoError)) this.definir({ erro: e instanceof Error ? e.message : 'Falha na sincronização.' });
       } finally {
-        this.definir({ sincronizando: false, fase: null });
+        this.definir({ ocupado: false });
       }
-    })();
-    try {
-      await this.emAndamento;
-    } finally {
-      this.emAndamento = null;
-    }
+    });
+    return this.fila;
   }
 
-  private tratarErroGeral(e: unknown) {
-    if (e instanceof SessaoExpiradaError) {
-      this.definir({ precisaLogin: true, erro: e.message });
-    } else if (e instanceof NetworkUnavailableError) {
-      this.definir({ erro: null });
-    } else {
-      this.definir({ erro: e instanceof Error ? e.message : 'Falha na sincronização.' });
-    }
-  }
-
-  private async executarPush() {
+  private async executarEnvio() {
     if (!network.isOnline()) return;
-    this.definir({ fase: 'ENVIANDO' });
-    const fila = await db.outbox.where('status').anyOf('PENDENTE', 'ENVIANDO').sortBy('seq');
-    let enviados = 0;
-    for (const op of fila) {
-      const continuar = await this.executarOperacao(op);
-      if (continuar === 'PARAR') break;
-      if (continuar === 'OK') enviados++;
-    }
-    await this.enviarLogs();
-    if (enviados > 0) {
-      const agora = new Date().toISOString();
-      await db.gravarMeta('ultimaSync', agora);
-      this.definir({ ultimaSync: agora, precisaLogin: false });
-      await registrarLog('SINCRONIZACAO_CONCLUIDA', null, null, { enviados });
-    }
-  }
-
-  private async executarOperacao(op: OperacaoOutbox): Promise<'OK' | 'SEGUIR' | 'PARAR'> {
-    await db.outbox.update(op.seq!, { status: 'ENVIANDO', tentativas: op.tentativas + 1 });
-    try {
-      await comandoPara(op).execute();
-      await db.outbox.update(op.seq!, { status: 'CONCLUIDO', ultimoErro: null, concluidoEm: new Date().toISOString() });
-      return 'OK';
-    } catch (e) {
-      const voltar = (erro: string | null) => db.outbox.update(op.seq!, { status: 'PENDENTE', ultimoErro: erro });
-      if (e instanceof NetworkUnavailableError) {
-        await voltar(null);
-        return 'PARAR';
+    for (const op of await db.outbox.where('status').equals('PENDENTE').sortBy('seq')) {
+      try {
+        await comandoPara(op).execute();
+        await db.outbox.update(op.seq!, { status: 'CONCLUIDO', erro: null });
+      } catch (e) {
+        // Erro de validação ou regra clínica: não adianta reenviar; o resto segue.
+        if (e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 401 && e.status !== 409) {
+          await db.outbox.update(op.seq!, { status: 'ERRO', erro: e.message });
+          continue;
+        }
+        throw e; // sem rede, central fora do ar ou dependência ausente: tenta de novo depois
       }
-      if (e instanceof SessaoExpiradaError) {
-        await voltar(e.message);
-        this.definir({ precisaLogin: true });
-        return 'PARAR';
-      }
-      if (e instanceof ApiError && (e.status === 409 && e.codigo === 'DEPENDENCIA_AUSENTE')) {
-        await voltar(e.message);
-        return 'PARAR';
-      }
-      if (e instanceof ApiError && e.status >= 400 && e.status < 500) {
-        // Erro permanente (validação, regra clínica): não adianta reenviar igual.
-        await db.outbox.update(op.seq!, { status: 'ERRO', ultimoErro: e.message });
-        await this.marcarErro(op, e.message);
-        await registrarLog('ERRO_SINCRONIZACAO', op.tipo, op.entidadeId, { codigo: e.codigo, status: e.status }, 'ERROR');
-        return 'SEGUIR';
-      }
-      await voltar(e instanceof Error ? e.message : 'Falha temporária');
-      return 'PARAR';
     }
-  }
-
-  private async marcarErro(op: OperacaoOutbox, erro: string) {
-    const tabela = op.tipo === 'UPSERT_PESSOA' ? db.pessoas : op.tipo === 'UPSERT_PRONTUARIO' ? db.prontuarios : db.atendimentos;
-    await tabela.update(op.entidadeId, { syncStatus: 'ERRO', syncErro: erro });
-  }
-
-  /** Envia os logs gerados no aparelho (POST /log), em lotes idempotentes. */
-  private async enviarLogs() {
-    for (;;) {
-      const lote = await db.logsLocais.where('enviado').equals(0).limit(200).toArray();
-      if (lote.length === 0) return;
-      const corpo: LogBatchRequest = {
-        dispositivoId: dispositivoId(),
-        logs: lote.map(({ enviado: _e, ...l }) => l),
-      };
-      await api('POST', '/log', corpo, { idempotencyKey: novoId() });
-      await db.logsLocais.bulkUpdate(lote.map((l) => ({ key: l.id, changes: { enviado: 1 as const } })));
-      if (lote.length < 200) return;
-    }
-  }
-
-  private async executarPull() {
-    if (!network.isOnline()) throw new NetworkUnavailableError();
-    this.definir({ fase: 'RECEBENDO' });
-    let cursor = await db.lerMeta<number>('syncCursor', 0);
-    for (;;) {
-      const r = await api<PullResponse>('GET', `/sync/pull?cursor=${cursor}&limite=500`);
-      await this.aplicarPull(r);
-      cursor = r.proximoCursor;
-      await db.gravarMeta('syncCursor', cursor);
-      if (!r.temMais) break;
+    const logs = await db.logsLocais.where('enviado').equals(0).toArray();
+    if (logs.length) {
+      await api('POST', '/log', { dispositivoId: dispositivoId(), logs: logs.map(({ enviado: _e, ...l }) => l) }, novoId());
+      await db.logsLocais.bulkUpdate(logs.map((l) => ({ key: l.id, changes: { enviado: 1 as const } })));
     }
     const agora = new Date().toISOString();
-    await db.gravarMeta('ultimoRecebimento', agora);
-    this.definir({ ultimoRecebimento: agora, precisaLogin: false });
+    await db.gravarMeta('ultimoEnvio', agora);
+    this.definir({ ultimoEnvio: agora });
   }
 
-  /** Aplica as mudanças da central sem sobrescrever registros com envio pendente. */
-  private async aplicarPull(r: PullResponse) {
-    const pendentes = new Set(
-      (await db.outbox.where('status').anyOf('PENDENTE', 'ENVIANDO', 'ERRO').toArray()).map((o) => o.entidadeId),
-    );
-    const livres = <T extends { id: string }>(lista: T[]) => lista.filter((x) => !pendentes.has(x.id));
-    const sinc = { syncStatus: 'SINCRONIZADO' as const, syncErro: null };
-    await db.transaction('rw', [db.medicamentos, db.hospitais, db.viaturas, db.pessoas, db.prontuarios, db.atendimentos], async () => {
+  private async executarRecebimento() {
+    if (!network.isOnline()) throw new SemConexaoError();
+    const cursor = await db.lerMeta<number>('cursor', 0);
+    const r = await api<PullResponse>('GET', `/sync/pull?cursor=${cursor}`);
+    const pendentes = new Set((await db.outbox.where('status').equals('PENDENTE').toArray()).map((o) => o.entidadeId));
+    const livres = <T extends { id: string }>(l: T[]) => l.filter((x) => !pendentes.has(x.id)).map((x) => ({ ...x, syncStatus: 'SINCRONIZADO' as const }));
+    await db.transaction('rw', [db.medicamentos, db.pessoas, db.prontuarios, db.atendimentos, db.meta], async () => {
       await db.medicamentos.bulkPut(r.medicamentos);
-      await db.hospitais.bulkPut(r.hospitais);
-      await db.viaturas.bulkPut(r.viaturas);
-      await db.pessoas.bulkPut(livres(r.pessoas).map((p) => ({ ...p, ...sinc })));
-      await db.prontuarios.bulkPut(livres(r.prontuarios).map((p) => ({ ...p, ...sinc })));
-      await db.atendimentos.bulkPut(livres(r.atendimentos).map((a) => ({ ...a, ...sinc })));
+      await db.pessoas.bulkPut(livres(r.pessoas));
+      await db.prontuarios.bulkPut(livres(r.prontuarios));
+      await db.atendimentos.bulkPut(livres(r.atendimentos));
+      await db.gravarMeta('cursor', r.proximoCursor);
     });
-  }
-
-  async tentarNovamente(seq: number) {
-    await db.outbox.update(seq, { status: 'PENDENTE', ultimoErro: null });
-    await this.push();
-  }
-
-  /** Descarta uma operação com erro permanente (o registro local continua no aparelho). */
-  async descartar(seq: number) {
-    await db.outbox.update(seq, { status: 'CONCLUIDO', ultimoErro: 'Descartada pelo profissional', concluidoEm: new Date().toISOString() });
+    const agora = new Date().toISOString();
+    await db.gravarMeta('ultimoRecebimento', agora);
+    this.definir({ ultimoRecebimento: agora });
   }
 }
 
