@@ -29,10 +29,9 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
-                        // Únicas rotas públicas: login e renovação (autenticada pelo próprio refresh token).
-                        .requestMatchers(HttpMethod.POST, "/auth/login", "/auth/refresh").permitAll()
-                        // Swagger: o gateway não expõe estas rotas; acessíveis só na própria VM.
-                        .requestMatchers("/docs/**", "/docs", "/v3/api-docs/**", "/swagger-ui/**", "/error").permitAll()
+                        // Única rota pública: o login.
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) -> problems.write(req, res, HttpStatus.UNAUTHORIZED,

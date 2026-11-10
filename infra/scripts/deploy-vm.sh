@@ -51,7 +51,6 @@ PORT=8000
 DATABASE_URL=postgresql+psycopg://mf_document:$PW_DOCUMENT@127.0.0.1:5432/medicalfield
 JWT_PUBLIC_KEY_PATH=$ETC/jwt-public.pem
 CLINICAL_BASE_URL=http://127.0.0.1:3001
-IDENTITY_BASE_URL=http://127.0.0.1:8081
 FICHAS_DIR=$VAR/fichas
 MAIL_OUTBOX_DIR=$VAR/mail
 SMTP_FROM="MedicalField <nao-responda@medicalfield.local>"

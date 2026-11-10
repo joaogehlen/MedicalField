@@ -28,7 +28,6 @@ public class ProblemWriter {
         p.put("status", status.value());
         p.put("detail", detalhe);
         p.put("codigo", codigo);
-        p.put("requestId", req.getAttribute(AccessLogFilter.ATTR_REQUEST_ID));
         if (campos != null && !campos.isEmpty()) p.put("campos", campos);
         return p;
     }

@@ -4,7 +4,6 @@ do documento (dados de cada bloco) da sua representação (HTML → PDF).
 """
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +15,7 @@ from weasyprint import HTML
 TEMPLATES = Path(__file__).parent / "templates"
 FUSO = ZoneInfo("America/Sao_Paulo")
 
-ROTULO_TRIAGEM = {
+SIGNIFICADO = {
     "START": {"VERMELHO": "Imediato", "AMARELO": "Retardado", "VERDE": "Leve", "PRETO": "Óbito / expectante"},
     "MANCHESTER": {"VERMELHO": "Emergência", "LARANJA": "Muito urgente", "AMARELO": "Urgente",
                    "VERDE": "Pouco urgente", "AZUL": "Não urgente"},
@@ -30,128 +29,79 @@ GLASGOW = {
 SEXO = {"M": "Masculino", "F": "Feminino", "O": "Outro"}
 
 
-def _dh(iso: str | None) -> str:
+def _data(iso: str | None, formato: str = "%d/%m/%Y %H:%M") -> str:
     if not iso:
         return "—"
-    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(FUSO).strftime("%d/%m/%Y %H:%M")
-
-
-def _hora(iso: str | None) -> str:
-    if not iso:
-        return "—"
-    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(FUSO).strftime("%H:%M")
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(FUSO).strftime(formato)
 
 
 def _cpf(cpf: str | None) -> str:
-    if not cpf or len(cpf) != 11:
-        return cpf or "—"
-    return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+    return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}" if cpf and len(cpf) == 11 else "—"
 
 
-def _num(v, casas: int = 0) -> str:
+def _num(v) -> str:
     if v is None:
         return "—"
-    s = f"{float(v):,.{casas}f}" if casas else f"{float(v):,.3f}".rstrip("0").rstrip(".")
-    return s.replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def _idade(nasc: str | None, ref: str) -> str:
-    if not nasc:
-        return "—"
-    n = datetime.fromisoformat(nasc).date()
-    r = datetime.fromisoformat(ref.replace("Z", "+00:00")).date()
-    anos = r.year - n.year - ((r.month, r.day) < (n.month, n.day))
-    return f"{anos} anos"
+    return (f"{float(v):.1f}" if float(v) % 1 else f"{int(float(v))}").replace(".", ",")
 
 
 @dataclass
 class Ficha:
-    """Produto do builder: o documento pronto e sua impressão digital."""
     pdf: bytes
-    sha256: str
     nome_arquivo: str
 
 
 @dataclass
 class FichaAtendimentoBuilder:
-    profissionais: dict[str, str] = field(default_factory=dict)
     _ctx: dict = field(default_factory=dict)
 
     def cabecalho(self, a: dict) -> FichaAtendimentoBuilder:
-        self._ctx["numero"] = a["id"].split("-")[0].upper()
-        self._ctx["id"] = a["id"]
-        self._ctx["status"] = "Finalizado" if a["status"] == "FINALIZADO" else "Em andamento"
-        self._ctx["iniciado"] = _dh(a["iniciadoEm"])
-        fim = a.get("finalizadoEm")
-        # Mesmo dia do início: basta a hora.
-        self._ctx["finalizado"] = _hora(fim) if fim and _dh(fim)[:10] == _dh(a["iniciadoEm"])[:10] else _dh(fim)
-        self._ctx["offline"] = bool(a.get("criadoOffline"))
-        self._ctx["sincronizado"] = _dh(a.get("sincronizadoEm"))
+        t = a["triagem"]
+        self._ctx.update(
+            numero=a["id"].split("-")[0].upper(),
+            id=a["id"],
+            data_hora=_data(a["dataHora"]),
+            offline=bool(a.get("criadoOffline")),
+            sincronizado=_data(a.get("sincronizadoEm")),
+            triagem={
+                "classificacao": t["classificacao"],
+                "cor": t["classificacao"].capitalize(),
+                "protocolo": "START" if t["protocolo"] == "START" else "Manchester",
+                "significado": SIGNIFICADO[t["protocolo"]].get(t["classificacao"], ""),
+            },
+        )
         return self
 
-    def paciente(self, p: dict, ref: str) -> FichaAtendimentoBuilder:
+    def paciente(self, p: dict, pr: dict) -> FichaAtendimentoBuilder:
         self._ctx["paciente"] = {
             "nome": p["nome"],
-            "identificada": p["identificada"],
             "cpf": _cpf(p.get("cpf")),
-            "nascimento": datetime.fromisoformat(p["dataNascimento"]).strftime("%d/%m/%Y") if p.get("dataNascimento") else "—",
-            "idade": _idade(p.get("dataNascimento"), ref),
+            "nascimento": _data(p.get("dataNascimento") + "T12:00:00Z", "%d/%m/%Y") if p.get("dataNascimento") else "—",
             "sexo": SEXO.get(p.get("sexo") or "", "—"),
             "telefone": p.get("telefone") or "—",
-            "caracteristicas": p.get("caracteristicas"),
-            "contato": " · ".join(x for x in [p.get("contatoNome"), p.get("contatoParentesco"), p.get("contatoTelefone")] if x) or "—",
-        }
-        return self
-
-    def prontuario(self, pr: dict) -> FichaAtendimentoBuilder:
-        self._ctx["prontuario"] = {
+            "contato": p.get("contatoNome") or "—",
             "tipo_sanguineo": pr.get("tipoSanguineo") or "—",
             "alergias": pr.get("alergias") or [],
             "comorbidades": ", ".join(pr.get("comorbidades") or []) or "Nenhuma registrada",
-            "uso_continuo": ", ".join(pr.get("medicamentosUsoContinuo") or []) or "Nenhum registrado",
-            "observacoes": pr.get("observacoes"),
         }
         return self
 
     def ocorrencia(self, a: dict) -> FichaAtendimentoBuilder:
-        local = a["local"]
-        coords = (f"{_num(local['latitude'], 5)}, {_num(local['longitude'], 5)}"
-                  if local.get("latitude") is not None and local.get("longitude") is not None else None)
-        self._ctx["ocorrencia"] = {
-            "local": local["descricao"],
-            "coordenadas": coords,
-            "queixa": a["queixaPrincipal"],
-            "descricao": a.get("descricao"),
-            "viatura": (a.get("viatura") or {}).get("prefixo", "—"),
-            "destino": (a.get("hospitalDestino") or {}).get("nome", "—"),
-            "procedimentos": a.get("procedimentos") or [],
-        }
+        self._ctx["ocorrencia"] = {"local": a["local"], "queixa": a["queixaPrincipal"], "observacoes": a.get("observacoes")}
         return self
 
-    def triagem(self, a: dict) -> FichaAtendimentoBuilder:
-        t, g = a["triagem"], a["glasgow"]
-        self._ctx["triagem"] = {
-            "protocolo": "START" if t["protocolo"] == "START" else "Manchester",
-            "classificacao": t["classificacao"],
-            "cor": t["classificacao"].capitalize(),
-            "significado": ROTULO_TRIAGEM[t["protocolo"]].get(t["classificacao"], ""),
-        }
+    def avaliacao(self, a: dict) -> FichaAtendimentoBuilder:
+        g, s = a["glasgow"], a["sinaisVitais"]
         self._ctx["glasgow"] = {
             "total": g["total"],
             "itens": [(k.capitalize(), g[k], GLASGOW[k][g[k]]) for k in ("ocular", "verbal", "motora")],
             "gravidade": "Leve" if g["total"] >= 13 else "Moderado" if g["total"] >= 9 else "Grave",
         }
-        return self
-
-    def sinais_vitais(self, sinais: list[dict]) -> FichaAtendimentoBuilder:
+        pa = f"{s['paSistolica']}/{s['paDiastolica']}" if s.get("paSistolica") and s.get("paDiastolica") else "—"
         self._ctx["sinais"] = [
-            {
-                "hora": _hora(s["aferidoEm"]),
-                "pa": f"{s['paSistolica']}/{s['paDiastolica']}" if s.get("paSistolica") and s.get("paDiastolica") else "—",
-                "fc": _num(s.get("fc")), "fr": _num(s.get("fr")), "spo2": _num(s.get("spo2")),
-                "temp": _num(s.get("temperatura"), 1), "glic": _num(s.get("glicemia")), "dor": _num(s.get("dor")),
-            }
-            for s in sinais
+            ("PA", pa, "mmHg"), ("FC", _num(s.get("fc")), "bpm"), ("FR", _num(s.get("fr")), "irpm"),
+            ("SpO₂", _num(s.get("spo2")), "%"), ("Temp.", _num(s.get("temperatura")), "°C"),
+            ("Glicemia", _num(s.get("glicemia")), "mg/dL"),
         ]
         return self
 
@@ -159,49 +109,37 @@ class FichaAtendimentoBuilder:
         nomes = {m["id"]: m for m in catalogo}
         self._ctx["medicamentos"] = [
             {
-                "hora": _hora(m["administradoEm"]),
+                "hora": _data(m["horario"], "%H:%M"),
                 "nome": nomes.get(m["medicamentoId"], {}).get("nome", "Medicamento"),
                 "apresentacao": nomes.get(m["medicamentoId"], {}).get("apresentacao", ""),
-                "dose": f"{_num(m['dose'])} {m['unidade']}",
+                "dose": f"{_num(m['dose'])} {nomes.get(m['medicamentoId'], {}).get('unidade', '')}",
                 "via": m["via"],
-                "por": self.profissionais.get(m["administradoPor"], m["administradoPor"][:8]),
-                "obs": m.get("observacao"),
-                "justificativas": [f"{j['codigo']}: {j['justificativa']}" for j in m.get("alertasIgnorados") or []],
             }
             for m in itens
         ]
         return self
 
-    def adendos(self, adendos: list[dict]) -> FichaAtendimentoBuilder:
-        self._ctx["adendos"] = [{"quando": _dh(d["criadoEm"]), "texto": d["texto"]} for d in adendos or []]
-        return self
-
-    def responsavel(self, profissional_id: str) -> FichaAtendimentoBuilder:
-        self._ctx["responsavel"] = self.profissionais.get(profissional_id, "Profissional não identificado")
+    def responsavel(self, nome: str) -> FichaAtendimentoBuilder:
+        self._ctx["responsavel"] = nome
         return self
 
     def build(self, emitido_por: str) -> Ficha:
         env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html"]))
-        self._ctx["emitido_em"] = datetime.now(FUSO).strftime("%d/%m/%Y %H:%M")
-        self._ctx["emitido_por"] = emitido_por
+        self._ctx["emitido"] = f"{datetime.now(FUSO).strftime('%d/%m/%Y %H:%M')} por {emitido_por}"
         html = env.get_template("ficha.html").render(**self._ctx)
         pdf = HTML(string=html, base_url=str(TEMPLATES)).write_pdf()
-        return Ficha(pdf=pdf, sha256=hashlib.sha256(pdf).hexdigest(),
-                     nome_arquivo=f"ficha-atendimento-{self._ctx['numero'].lower()}.pdf")
+        return Ficha(pdf=pdf, nome_arquivo=f"ficha-atendimento-{self._ctx['numero'].lower()}.pdf")
 
 
-def montar_ficha(detalhe: dict, emitido_por: str, profissionais: dict[str, str] | None = None) -> Ficha:
-    """Diretor: a ordem das seções da ficha de APH."""
-    b = FichaAtendimentoBuilder(profissionais=profissionais or {})
+def montar_ficha(detalhe: dict, emitido_por: str) -> Ficha:
+    """Diretor: a ordem das seções da ficha."""
     return (
-        b.cabecalho(detalhe)
-        .paciente(detalhe["pessoa"], detalhe["iniciadoEm"])
-        .prontuario(detalhe["prontuario"])
+        FichaAtendimentoBuilder()
+        .cabecalho(detalhe)
+        .paciente(detalhe["pessoa"], detalhe["prontuario"])
         .ocorrencia(detalhe)
-        .triagem(detalhe)
-        .sinais_vitais(detalhe["sinaisVitais"])
+        .avaliacao(detalhe)
         .medicamentos(detalhe["medicamentos"], detalhe.get("medicamentosCatalogo") or [])
-        .adendos(detalhe.get("adendos") or [])
-        .responsavel(detalhe["registradoPor"])
+        .responsavel(detalhe["profissionalNome"])
         .build(emitido_por)
     )

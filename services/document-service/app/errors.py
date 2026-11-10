@@ -23,7 +23,6 @@ def problem(request: Request, status: int, codigo: str, titulo: str, detalhe: st
             "status": status,
             "detail": detalhe,
             "codigo": codigo,
-            "requestId": getattr(request.state, "request_id", None),
             **extras,
         },
     )
