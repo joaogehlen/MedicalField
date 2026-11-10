@@ -7,214 +7,132 @@
   @font-face { font-family: "Atkinson Next"; font-weight: 400; src: url("fonts/atkinson-hyperlegible-next-latin-400-normal.woff2"); }
   @font-face { font-family: "Atkinson Next"; font-weight: 700; src: url("fonts/atkinson-hyperlegible-next-latin-700-normal.woff2"); }
   @font-face { font-family: "Atkinson Mono"; font-weight: 400; src: url("fonts/atkinson-hyperlegible-mono-latin-400-normal.woff2"); }
-  @font-face { font-family: "Atkinson Mono"; font-weight: 600; src: url("fonts/atkinson-hyperlegible-mono-latin-600-normal.woff2"); }
-
-  :root {
-    --farda: #10283d;
-    --tinta: #0f1b24;
-    --tinta-2: #4a5a66;
-    --regua: #c9d2d8;
-    --papel: #f4f6f7;
-    --vermelho: #c8102e; --laranja: #c2500a; --amarelo: #f2c200; --verde: #18794a; --azul: #1f5fc0; --preto: #1a1a1a;
-  }
 
   @page {
     size: A4;
-    margin: 14mm 13mm 18mm;
-    @bottom-left {
-      content: "Atendimento {{ id }} · Dados pessoais de saúde (LGPD, art. 11): uso restrito ao cuidado do paciente.";
-      font-family: "Atkinson Next"; font-size: 7pt; color: #4a5a66; width: 150mm;
-    }
-    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: "Atkinson Next"; font-size: 7pt; color: #4a5a66; width: 30mm; }
+    margin: 14mm 14mm 16mm;
+    @bottom-left { content: "Dados pessoais de saúde (LGPD, art. 11) — uso restrito ao cuidado do paciente."; font-family: "Atkinson Next"; font-size: 7pt; color: #5b6b7a; width: 140mm; }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: "Atkinson Next"; font-size: 7pt; color: #5b6b7a; width: 30mm; }
   }
 
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Atkinson Next", sans-serif; font-size: 9.5pt; line-height: 1.35; color: var(--tinta); }
-  .mono { font-family: "Atkinson Mono", monospace; font-variant-numeric: tabular-nums; }
+  body { margin: 0; font-family: "Atkinson Next", sans-serif; font-size: 9.5pt; line-height: 1.35; color: #14263a; }
+  .mono { font-family: "Atkinson Mono", monospace; }
 
-  /* Casca: faixa azul-marinho da farda */
-  .casca { display: flex; justify-content: space-between; align-items: stretch; background: var(--farda); color: #fff; border-radius: 6px; overflow: hidden; }
-  .casca .titulo { padding: 10px 14px; }
-  .casca .marca { font-weight: 700; font-size: 8pt; letter-spacing: .02em; color: #b9c8d6; }
-  .casca h1 { margin: 2px 0 0; font-size: 15pt; line-height: 1.15; }
-  .casca .num { margin-top: 4px; font-size: 8.5pt; color: #dbe4ec; }
+  .topo { width: 100%; border-collapse: collapse; border-bottom: 3px solid #1559a8; }
+  .topo td { border: 0; padding: 0 0 10px; vertical-align: middle; }
+  .cruz { width: 26px; height: 26px; vertical-align: middle; margin-right: 8px; }
+  .marca b { font-size: 13pt; color: #0e2a47; }
+  .marca span { display: block; font-size: 7.5pt; color: #5b6b7a; }
+  h1 { margin: 12px 0 2px; font-size: 17pt; color: #0e2a47; }
+  .linha-info { color: #5b6b7a; font-size: 8.5pt; }
+  .selo { display: inline-block; padding: 1px 7px; border-radius: 10px; font-weight: 700; font-size: 8pt; background: #fff1c2; color: #6b4b00; }
 
-  /* Etiqueta de triagem com ilhós */
-  .etiqueta { width: 52mm; padding: 9px 12px 9px 26px; position: relative; color: #fff; }
-  .etiqueta::before { content: ""; position: absolute; left: 9px; top: 13px; width: 9px; height: 9px; border-radius: 50%; background: var(--farda); box-shadow: 0 0 0 2px rgba(255,255,255,.75); }
-  .etiqueta .proto { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; opacity: .9; }
-  .etiqueta .cor { font-size: 15pt; font-weight: 700; line-height: 1.1; }
-  .etiqueta .sig { font-size: 8.5pt; }
-  .t-VERMELHO { background: var(--vermelho); } .t-LARANJA { background: var(--laranja); }
-  .t-AMARELO { background: var(--amarelo); color: var(--tinta); } .t-AMARELO::before { box-shadow: 0 0 0 2px rgba(15,27,36,.4); }
-  .t-VERDE { background: var(--verde); } .t-AZUL { background: var(--azul); } .t-PRETO { background: var(--preto); }
+  .triagem { text-align: right; }
+  .tag { display: inline-block; padding: 6px 14px; border-radius: 6px; color: #fff; font-weight: 700; font-size: 12pt; text-align: left; }
+  .tag small { display: block; font-weight: 400; font-size: 8pt; }
+  .t-VERMELHO { background: #c8102e; } .t-LARANJA { background: #c2500a; } .t-AMARELO { background: #f2c200; color: #14263a; }
+  .t-VERDE { background: #18794a; } .t-AZUL { background: #1f5fc0; } .t-PRETO { background: #1a1a1a; }
 
-  .situacao { margin: 6px 0 0; font-size: 8pt; color: var(--tinta-2); display: flex; flex-wrap: wrap; gap: 4px 14px; }
-  .situacao > span { white-space: nowrap; margin-right: 12px; }
-  .selo-offline { color: var(--tinta); font-weight: 700; padding: 1px 7px; border-radius: 3px; background: #ffe08a; border: 1.5px solid #1a1a1a; }
+  section { margin-top: 12px; break-inside: avoid; }
+  h2 { margin: 0 0 6px; font-size: 9.5pt; color: #1559a8; text-transform: uppercase; letter-spacing: .06em; }
+  .campos { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #d8e1ea; border-radius: 8px; }
+  .campos td { width: 25%; padding: 5px 10px; vertical-align: top; border: 0; }
+  .rot { font-size: 7pt; color: #5b6b7a; text-transform: uppercase; letter-spacing: .04em; }
+  .val { font-weight: 700; }
 
-  section { margin-top: 10px; break-inside: avoid; }
-  h2 { margin: 0 0 4px; font-size: 9pt; text-transform: uppercase; letter-spacing: .07em; color: var(--farda); padding-bottom: 3px; border-bottom: 1px solid var(--farda); }
+  .alergias { margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: #fdebee; color: #9b1426; font-weight: 700; }
+  .caixas { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px; }
+  .caixas td { border: 1px solid #d8e1ea; border-radius: 8px; padding: 6px; text-align: center; }
+  .caixas .val { font-size: 12pt; }
+  .caixas td.esq { text-align: left; }
+  .caixas td.total { background: #eaf2fb; border-color: #eaf2fb; width: 22mm; }
+  .caixas td.total .val { font-size: 16pt; color: #0e2a47; }
 
-  /* Campos de formulário: rótulo acima, valor abaixo, réguas de 1px */
-  .grade { display: grid; gap: 0 12px; }
-  .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: 2fr 1fr 1fr; } .g4 { grid-template-columns: repeat(4, 1fr); }
-  .campo { padding: 4px 0 5px; border-bottom: 1px solid var(--regua); }
-  .rot { font-size: 7pt; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-2); }
-  .val { font-size: 10pt; min-height: 13pt; }
-  .val.forte { font-weight: 700; }
-
-  .alergias { margin-top: 6px; padding: 6px 10px; border: 1.5px solid var(--vermelho); border-radius: 5px; background: #fdecee; }
-  .alergias .rot { color: #8f0b20; font-weight: 700; }
-  .alergias .val { font-weight: 700; color: #8f0b20; }
-  .sem-alergia { margin-top: 6px; font-size: 8.5pt; color: var(--tinta-2); }
-
-  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
-  th { text-align: left; font-size: 7pt; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-2); font-weight: 400; padding: 3px 6px; border-bottom: 1px solid var(--farda); }
-  td { padding: 4px 6px; border-bottom: 1px solid var(--regua); vertical-align: top; }
-  td.n, th.n { text-align: right; }
-  .sub { color: var(--tinta-2); font-size: 8pt; }
-  .vazio { color: var(--tinta-2); font-style: italic; padding: 4px 0; }
-
-  .glasgow { display: grid; grid-template-columns: 1fr 1fr 1fr 22mm; gap: 0 10px; align-items: end; }
-  .glasgow .total { text-align: center; border: 1px solid var(--farda); border-radius: 5px; padding: 4px; }
-  .glasgow .total .val { font-size: 16pt; font-weight: 700; }
-
-  .lista { margin: 2px 0 0; padding-left: 14px; }
-  .texto { white-space: pre-wrap; }
-  .assinatura { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-  .assinatura .linha { border-top: 1px solid var(--tinta); padding-top: 3px; font-size: 8.5pt; }
-  .emissao { margin-top: 6px; font-size: 7.5pt; color: var(--tinta-2); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 7pt; color: #5b6b7a; font-weight: 400; text-transform: uppercase; padding: 4px 6px; border-bottom: 1px solid #b9c8d6; }
+  td { padding: 5px 6px; border-bottom: 1px solid #e6ecf2; }
+  .vazio { color: #5b6b7a; font-style: italic; }
+  .sub { color: #5b6b7a; font-size: 8pt; }
+  .assinatura { width: 100%; margin-top: 22px; border-collapse: separate; border-spacing: 24px 0; }
+  .assinatura td { width: 50%; border: 0; border-top: 1px solid #14263a; padding-top: 3px; font-size: 8.5pt; }
+  .assinatura small { color: #5b6b7a; }
 </style>
 </head>
 <body>
 
-<header class="casca">
-  <div class="titulo">
-    <div class="marca">MEDICALFIELD · ATENDIMENTO PRÉ-HOSPITALAR</div>
-    <h1>Ficha de Atendimento</h1>
-    <div class="num">Nº <span class="mono">{{ numero }}</span> · {{ status }} · Início <span class="mono">{{ iniciado }}</span>{% if status == 'Finalizado' %} · Fim <span class="mono">{{ finalizado }}</span>{% endif %}</div>
-  </div>
-  <div class="etiqueta t-{{ triagem.classificacao }}">
-    <div class="proto">Triagem {{ triagem.protocolo }}</div>
-    <div class="cor">{{ triagem.cor }}</div>
-    <div class="sig">{{ triagem.significado }}</div>
-  </div>
-</header>
-<div class="situacao">
-  {% if offline %}<span class="selo-offline">Registrado offline</span>{% endif %}
-  <span>Recebido pela central em <span class="mono">{{ sincronizado }}</span></span>
-  <span>Emitida em <span class="mono">{{ emitido_em }}</span> por {{ emitido_por }}</span>
+<table class="topo"><tr>
+  <td class="marca">
+    <svg class="cruz" width="26" height="26" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#d0263a"/><path d="M10 5h4v5h5v4h-5v5h-4v-5H5v-4h5z" fill="#fff"/></svg>
+    <b>MedicalField</b> <span style="display:inline">· Atendimento pré-hospitalar</span>
+  </td>
+  <td class="triagem"><div class="tag t-{{ triagem.classificacao }}">{{ triagem.cor }}<small>{{ triagem.protocolo }} · {{ triagem.significado }}</small></div></td>
+</tr></table>
+
+<h1>Ficha de Atendimento</h1>
+<div class="linha-info">
+  Nº <span class="mono">{{ numero }}</span> · {{ data_hora }} · recebido pela central em {{ sincronizado }}
+  {% if offline %}· <span class="selo">Registrado offline</span>{% endif %}
 </div>
 
 <section>
   <h2>Paciente</h2>
-  <div class="grade g3">
-    <div class="campo"><div class="rot">Nome</div><div class="val forte">{{ paciente.nome }}{% if not paciente.identificada %} (não identificado){% endif %}</div></div>
-    <div class="campo"><div class="rot">CPF</div><div class="val mono">{{ paciente.cpf }}</div></div>
-    <div class="campo"><div class="rot">Tipo sanguíneo</div><div class="val forte">{{ prontuario.tipo_sanguineo }}</div></div>
-  </div>
-  <div class="grade g4">
-    <div class="campo"><div class="rot">Nascimento</div><div class="val mono">{{ paciente.nascimento }}</div></div>
-    <div class="campo"><div class="rot">Idade</div><div class="val">{{ paciente.idade }}</div></div>
-    <div class="campo"><div class="rot">Sexo</div><div class="val">{{ paciente.sexo }}</div></div>
-    <div class="campo"><div class="rot">Telefone</div><div class="val mono">{{ paciente.telefone }}</div></div>
-  </div>
-  <div class="grade g2">
-    <div class="campo"><div class="rot">Contato responsável</div><div class="val">{{ paciente.contato }}</div></div>
-    <div class="campo"><div class="rot">Comorbidades</div><div class="val">{{ prontuario.comorbidades }}</div></div>
-  </div>
-  {% if paciente.caracteristicas %}
-  <div class="campo"><div class="rot">Características (vítima não identificada)</div><div class="val texto">{{ paciente.caracteristicas }}</div></div>
-  {% endif %}
-  <div class="campo"><div class="rot">Medicamentos de uso contínuo</div><div class="val">{{ prontuario.uso_continuo }}</div></div>
-  {% if prontuario.alergias %}
-  <div class="alergias"><div class="rot">Alergias</div><div class="val">{{ prontuario.alergias | join(' · ') }}</div></div>
-  {% else %}
-  <div class="sem-alergia">Nenhuma alergia registrada no prontuário.</div>
-  {% endif %}
+  <table class="campos">
+    <tr><td colspan="2"><div class="rot">Nome</div><div class="val">{{ paciente.nome }}</div></td>
+        <td><div class="rot">CPF</div><div class="val mono">{{ paciente.cpf }}</div></td>
+        <td><div class="rot">Tipo sanguíneo</div><div class="val">{{ paciente.tipo_sanguineo }}</div></td></tr>
+    <tr><td><div class="rot">Nascimento</div><div class="val">{{ paciente.nascimento }}</div></td>
+        <td><div class="rot">Sexo</div><div class="val">{{ paciente.sexo }}</div></td>
+        <td><div class="rot">Telefone</div><div class="val">{{ paciente.telefone }}</div></td>
+        <td><div class="rot">Contato</div><div class="val">{{ paciente.contato }}</div></td></tr>
+    <tr><td colspan="4"><div class="rot">Comorbidades</div><div class="val">{{ paciente.comorbidades }}</div></td></tr>
+  </table>
+  {% if paciente.alergias %}<div class="alergias">Alergias: {{ paciente.alergias | join(', ') }}</div>{% endif %}
 </section>
 
 <section>
   <h2>Ocorrência</h2>
-  <div class="grade g2">
-    <div class="campo"><div class="rot">Local</div><div class="val">{{ ocorrencia.local }}{% if ocorrencia.coordenadas %} <span class="sub mono">({{ ocorrencia.coordenadas }})</span>{% endif %}</div></div>
-    <div class="campo"><div class="rot">Queixa principal</div><div class="val forte">{{ ocorrencia.queixa }}</div></div>
-  </div>
-  <div class="grade g2">
-    <div class="campo"><div class="rot">Viatura</div><div class="val">{{ ocorrencia.viatura }}</div></div>
-    <div class="campo"><div class="rot">Destino</div><div class="val">{{ ocorrencia.destino }}</div></div>
-  </div>
-  {% if ocorrencia.descricao %}
-  <div class="campo"><div class="rot">Descrição</div><div class="val texto">{{ ocorrencia.descricao }}</div></div>
-  {% endif %}
+  <table class="campos">
+    <tr><td colspan="2" style="width:50%"><div class="rot">Local</div><div class="val">{{ ocorrencia.local }}</div></td>
+        <td colspan="2"><div class="rot">Queixa principal</div><div class="val">{{ ocorrencia.queixa }}</div></td></tr>
+    {% if ocorrencia.observacoes %}<tr><td colspan="4"><div class="rot">Observações</div><div>{{ ocorrencia.observacoes }}</div></td></tr>{% endif %}
+  </table>
 </section>
 
 <section>
-  <h2>Nível de consciência · Escala de Glasgow</h2>
-  <div class="glasgow">
-    {% for nome, valor, desc in glasgow.itens %}
-    <div class="campo"><div class="rot">{{ nome }}</div><div class="val"><span class="mono">{{ valor }}</span> · {{ desc }}</div></div>
-    {% endfor %}
-    <div class="total"><div class="rot">Total</div><div class="val mono">{{ glasgow.total }}</div><div class="sub">{{ glasgow.gravidade }}</div></div>
-  </div>
+  <h2>Escala de Glasgow</h2>
+  <table class="caixas"><tr>
+    {% for nome, valor, desc in glasgow.itens %}<td class="esq"><div class="rot">{{ nome }}</div><div><b>{{ valor }}</b> · {{ desc }}</div></td>{% endfor %}
+    <td class="total"><div class="rot">Total</div><div class="val">{{ glasgow.total }}</div><div class="rot">{{ glasgow.gravidade }}</div></td>
+  </tr></table>
 </section>
 
 <section>
   <h2>Sinais vitais</h2>
-  {% if sinais %}
-  <table>
-    <thead><tr><th>Hora</th><th class="n">PA (mmHg)</th><th class="n">FC (bpm)</th><th class="n">FR (irpm)</th><th class="n">SpO₂ (%)</th><th class="n">Temp. (°C)</th><th class="n">Glicemia</th><th class="n">Dor</th></tr></thead>
-    <tbody>
-    {% for s in sinais %}
-      <tr class="mono"><td>{{ s.hora }}</td><td class="n">{{ s.pa }}</td><td class="n">{{ s.fc }}</td><td class="n">{{ s.fr }}</td><td class="n">{{ s.spo2 }}</td><td class="n">{{ s.temp }}</td><td class="n">{{ s.glic }}</td><td class="n">{{ s.dor }}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}<div class="vazio">Nenhuma aferição registrada.</div>{% endif %}
+  <table class="caixas"><tr>
+    {% for nome, valor, unidade in sinais %}<td><div class="rot">{{ nome }}</div><div class="val mono">{{ valor }}</div><div class="rot">{{ unidade }}</div></td>{% endfor %}
+  </tr></table>
 </section>
 
 <section>
   <h2>Medicamentos administrados</h2>
   {% if medicamentos %}
   <table>
-    <thead><tr><th>Hora</th><th>Medicamento</th><th class="n">Dose</th><th>Via</th><th>Administrado por</th></tr></thead>
+    <thead><tr><th>Hora</th><th>Medicamento</th><th>Dose</th><th>Via</th></tr></thead>
     <tbody>
     {% for m in medicamentos %}
-      <tr>
-        <td class="mono">{{ m.hora }}</td>
-        <td><strong>{{ m.nome }}</strong><div class="sub">{{ m.apresentacao }}</div>
-          {% if m.obs %}<div class="sub">{{ m.obs }}</div>{% endif %}
-          {% for j in m.justificativas %}<div class="sub">Alerta justificado — {{ j }}</div>{% endfor %}</td>
-        <td class="n mono">{{ m.dose }}</td>
-        <td class="mono">{{ m.via }}</td>
-        <td>{{ m.por }}</td>
-      </tr>
+      <tr><td class="mono">{{ m.hora }}</td><td><b>{{ m.nome }}</b> <span class="sub">{{ m.apresentacao }}</span></td><td class="mono">{{ m.dose }}</td><td>{{ m.via }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
-  {% else %}<div class="vazio">Nenhum medicamento administrado.</div>{% endif %}
+  {% else %}<p class="vazio">Nenhum medicamento administrado.</p>{% endif %}
 </section>
 
-{% if ocorrencia.procedimentos %}
-<section>
-  <h2>Procedimentos</h2>
-  <ul class="lista">{% for p in ocorrencia.procedimentos %}<li>{{ p }}</li>{% endfor %}</ul>
-</section>
-{% endif %}
-
-{% if adendos %}
-<section>
-  <h2>Adendos</h2>
-  {% for d in adendos %}<div class="campo"><div class="rot mono">{{ d.quando }}</div><div class="val texto">{{ d.texto }}</div></div>{% endfor %}
-</section>
-{% endif %}
-
-<div class="assinatura">
-  <div class="linha">{{ responsavel }}<div class="sub">Profissional responsável pelo registro</div></div>
-  <div class="linha">&nbsp;<div class="sub">Recebido por (unidade de destino)</div></div>
-</div>
-<div class="emissao">A integridade deste arquivo pode ser conferida pelo hash SHA-256 registrado no MedicalField.</div>
+<table class="assinatura"><tr>
+  <td>{{ responsavel }}<br><small>Profissional responsável</small></td>
+  <td>&nbsp;<br><small>Recebido por (unidade de destino)</small></td>
+</tr></table>
+<p class="sub" style="margin-top:10px">Emitida em {{ emitido }}.</p>
 
 </body>
 </html>

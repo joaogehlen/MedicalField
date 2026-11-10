@@ -8,7 +8,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RUNTIME="$ROOT/.runtime"
-mkdir -p "$RUNTIME"/{env,keys,logs,fichas,mail}
+mkdir -p "$RUNTIME"/{env,keys,logs,mail}
 
 # --- PostgreSQL --------------------------------------------------------------
 # Debian/Ubuntu/WSL: sobe o primeiro cluster existente (qualquer versão), se estiver parado.
@@ -102,7 +102,6 @@ PORT=8000
 DATABASE_URL=postgresql+psycopg://mf_document:$PW_DOCUMENT@127.0.0.1:$PG_PORT/medicalfield
 JWT_PUBLIC_KEY_PATH=$RUNTIME/keys/jwt-public.pem
 CLINICAL_BASE_URL=http://127.0.0.1:3001
-FICHAS_DIR=$RUNTIME/fichas
 # Sem SMTP_HOST os e-mails são gravados como .eml em MAIL_OUTBOX_DIR.
 # Para envio real (Gmail com senha de app, Brevo...), defina SMTP_* em .runtime/env/smtp.env
 MAIL_OUTBOX_DIR=$RUNTIME/mail
