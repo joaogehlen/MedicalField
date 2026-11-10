@@ -12,7 +12,7 @@ VAR=/var/lib/medicalfield
 
 echo "• usuário e pastas"
 id medicalfield >/dev/null 2>&1 || useradd --system --home "$OPT" --shell /usr/sbin/nologin medicalfield
-mkdir -p "$OPT" "$ETC" "$WWW" "$VAR"/{fichas,mail}
+mkdir -p "$OPT" "$ETC" "$WWW" "$VAR"/mail
 chown -R medicalfield: "$VAR"
 
 echo "• banco, usuários e schemas"
@@ -51,7 +51,6 @@ PORT=8000
 DATABASE_URL=postgresql+psycopg://mf_document:$PW_DOCUMENT@127.0.0.1:5432/medicalfield
 JWT_PUBLIC_KEY_PATH=$ETC/jwt-public.pem
 CLINICAL_BASE_URL=http://127.0.0.1:3001
-FICHAS_DIR=$VAR/fichas
 MAIL_OUTBOX_DIR=$VAR/mail
 SMTP_FROM="MedicalField <nao-responda@medicalfield.local>"
 # Para envio real, descomente e preencha (ex.: Gmail com senha de app):

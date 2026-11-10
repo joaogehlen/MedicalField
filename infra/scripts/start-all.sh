@@ -60,9 +60,9 @@ nginx -c "$RUNTIME/nginx/nginx.conf" -p "$RUNTIME/nginx"
 echo -n "• aguardando serviços"
 for i in $(seq 1 90); do
   if curl -sf -o /dev/null "http://127.0.0.1:$PORTA/app/" \
-     && curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORTA/api/auth/me" | grep -q 401 \
+     && curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORTA/api/profissional" | grep -q 401 \
      && curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORTA/api/medicamento" | grep -q 401 \
-     && curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORTA/api/ficha/access-log" | grep -q 401; then
+     && curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORTA/api/ficha/00000000-0000-0000-0000-000000000000/pdf" | grep -q 401; then
     echo " ok"
     echo
     echo "  Cliente (socorrista):  http://localhost:$PORTA/app/"
@@ -81,7 +81,7 @@ done
 echo " falhou."
 echo
 # Diagnóstico: qual serviço não respondeu e o final do log dele.
-for svc in "identity:8081:/auth/me" "clinical:3001:/medicamento" "document:8000:/ficha/access-log"; do
+for svc in "identity:8081:/profissional" "clinical:3001:/medicamento" "document:8000:/ficha/00000000-0000-0000-0000-000000000000/pdf"; do
   IFS=: read -r nome porta rota <<< "$svc"
   codigo=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$porta$rota" || true)
   if [[ "$codigo" == "401" ]]; then
