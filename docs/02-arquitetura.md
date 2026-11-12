@@ -11,7 +11,8 @@
 | **identity-service** | **Java 21 · Spring Boot 3.3** · Spring Security · JDBC · Flyway · Nimbus JOSE · Argon2 | 8081 | Login CRM/COREN/Socorrista, JWT RS256, profissionais, logs do aparelho |
 | **clinical-service** | **TypeScript · Node 22 · NestJS 10** · node-postgres | 3001 | Pessoas, prontuários, atendimentos, medicamentos, idempotência, conflitos, pull |
 | **document-service** | **Python 3.12+ · FastAPI** · SQLAlchemy · Jinja2 + WeasyPrint · smtplib | 8000 | Ficha em PDF e envio por e-mail |
-| **Nginx** | — | 80 (VM) / 8080 (local) | Gateway: serve as telas e roteia `/api/*` |
+| **Nginx** (container `gateway`) | — | 80 | Gateway: serve as telas e roteia `/api/*` |
+| **Mailpit** (container `email`) | — | `/email/` | Caixa de e-mails da demonstração (recebe a ficha) |
 | **PostgreSQL 16** | — | 5432 | Um *schema* e um usuário por serviço |
 
 **Por que essas linguagens:** TypeScript é a linguagem principal — cliente, portal e núcleo clínico compartilham os tipos e a regra de segurança clínica, escrita uma vez. Java/Spring é referência em autenticação. Python tem as melhores bibliotecas de PDF e e-mail. São três linguagens, como pede o RNF01.
@@ -40,7 +41,7 @@ flowchart TB
         client <--> idb
     end
     portal["💻 Portal — React"]
-    subgraph vm["🖥️ VM Univates (systemd, sem contêineres)"]
+    subgraph vm["🖥️ VM Univates — Docker Compose (um container por serviço)"]
         nginx["Nginx<br/>/app · /portal · /api/*"]
         idsvc["identity-service<br/>Java :8081"]
         clsvc["clinical-service<br/>TypeScript :3001"]
@@ -201,5 +202,5 @@ Sem `SMTP_HOST` configurado, o e-mail completo (com anexo) é gravado como `.eml
 | 04 | **UUID v7 gerado no aparelho** | Id sequencial no servidor | Cria registros offline sem colisão. |
 | 05 | Outbox enviada pelos **endpoints da proposta** | `POST /sync/push` em lote | Um só caminho de escrita, testável no Postman. |
 | 06 | **Pull por cursor** (`change_seq` preenchido por *trigger*) | `updatedSince` por data | Não depende do relógio; capta inserções direto no banco (passo 9). |
-| 07 | **Nginx + systemd** | Docker | A proposta dispensa contêineres. |
+| 07 | **Docker Compose** na VM | Nginx + systemd direto no SO | Um comando sobe tudo igual em qualquer máquina; cada serviço isolado com sua linguagem. Os scripts sem Docker continuam como alternativa. |
 | 08 | **Bootstrap 5** com tema próprio | CSS do zero | Telas consistentes e responsivas com pouco código. |

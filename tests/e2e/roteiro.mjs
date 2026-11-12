@@ -5,7 +5,7 @@
  *   cd tests/e2e && npm install && npx playwright install chromium   (uma vez)
  *   node roteiro.mjs
  *
- * Variáveis: MF_URL (padrão http://localhost:8080), CHROMIUM_PATH (opcional),
+ * Variáveis: MF_URL (padrão http://localhost:8080), MF_DOCKER=1 (sistema em containers), CHROMIUM_PATH (opcional),
  * MF_SENHA (senha dos profissionais de demonstração, padrão "medicalfield").
  * Pressupõe o banco recém-zerado (infra/scripts/reset-db.sh + start-all.sh).
  */
@@ -18,6 +18,8 @@ import { chromium } from 'playwright';
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const URL_BASE = process.env.MF_URL ?? 'http://localhost:8080';
 const SENHA = process.env.MF_SENHA ?? 'medicalfield';
+/** MF_DOCKER=1: sistema rodando com docker compose (./mf.sh). */
+const DOCKER = process.env.MF_DOCKER === '1';
 const CAPTURAS = join(RAIZ, '.runtime', 'roteiro');
 mkdirSync(CAPTURAS, { recursive: true });
 
@@ -164,10 +166,12 @@ try {
   });
 
   await passo(9, 'Portal: inserir novos medicamentos via banco de dados', async () => {
-    const url = env('clinical.env').DATABASE_URL;
-    const saida = execFileSync('psql', [url, '-v', 'ON_ERROR_STOP=1', '-q', '-f', join(RAIZ, 'infra/db/roteiro/passo-09-novos-medicamentos.sql')], { encoding: 'utf8' });
+    const arquivo = join(RAIZ, 'infra/db/roteiro/passo-09-novos-medicamentos.sql');
+    const saida = DOCKER
+      ? execFileSync(join(RAIZ, 'mf.sh'), ['passo9'], { encoding: 'utf8' })
+      : execFileSync('psql', [env('clinical.env').DATABASE_URL, '-v', 'ON_ERROR_STOP=1', '-q', '-f', arquivo], { encoding: 'utf8' });
     esperar(saida.includes('Cetoprofeno'), 'script SQL não retornou os medicamentos');
-    return 'Cetoprofeno e Salbutamol inseridos com psql (trigger preencheu change_seq)';
+    return `Cetoprofeno e Salbutamol inseridos com psql${DOCKER ? ' (container postgres)' : ''} — o trigger preencheu change_seq`;
   });
 
   await passo(10, 'Portal: listar atendimentos (e cadastros com os novos medicamentos)', async () => {
@@ -264,6 +268,16 @@ try {
     await portal.click('button:has-text("Enviar ficha")');
     await portal.waitForSelector('text=Ficha enviada para');
     await foto(portal, '17-portal-email-enviado');
+    if (DOCKER) {
+      // Caixa de e-mails da demonstração (Mailpit), atrás do gateway em /email/
+      const lista = await (await fetch(`${URL_BASE}/email/api/v1/messages?limit=5`)).json();
+      const msg = lista.messages.find((m) => m.To.some((t) => t.Address === 'ana.ramos@exemplo.com.br'));
+      esperar(msg && msg.Attachments >= 1, 'e-mail sem destinatário ou anexo na caixa de demonstração');
+      await portal.goto(`${URL_BASE}/email/`);
+      await portal.waitForLoadState('networkidle');
+      await foto(portal, '17b-caixa-de-email');
+      return `e-mail para ana.ramos@exemplo.com.br com PDF anexo (caixa em ${URL_BASE}/email/)`;
+    }
     const doc = env('document.env');
     if (doc.SMTP_HOST) return `entregue ao SMTP ${doc.SMTP_HOST}`;
     const pasta = doc.MAIL_OUTBOX_DIR;

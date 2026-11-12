@@ -179,13 +179,15 @@ Depois suba de novo com `sudo MF_BUILD=0 infra/scripts/start-all.sh`.
 | A primeira compilação está muito lenta | É normal na pasta do Windows (`/mnt/c`). Se incomodar, clone em `~/MedicalField` dentro do Ubuntu; o resto do guia não muda. |
 | Login no cliente diz “Este aparelho ainda não tem seu acesso” | Você está offline e nunca entrou com esse usuário neste navegador. Ligue a chave **Online** e entre uma vez. |
 
-## 10. Na VM da Univates
+## 10. Na VM da Univates (Docker)
 
-Na VM (Ubuntu), é o mesmo projeto com outro script, que deixa tudo rodando como serviço do sistema na porta 80:
+Na VM, o sistema roda em containers Docker. Entre por SSH e rode:
 
 ```bash
+sudo apt-get update && sudo apt-get install -y git
 git clone https://github.com/joaogehlen/MedicalField.git && cd MedicalField
-sudo infra/scripts/deploy-vm.sh
+./mf.sh instalar-docker
+MF_ENDERECO=<IP-da-VM> ./mf.sh subir
 ```
 
-Detalhes em [docs/07-implantacao-vm.md](docs/07-implantacao-vm.md).
+Depois, `./mf.sh ajuda` lista os comandos (status, logs, passo 9, zerar…). Passo a passo completo em [docs/07-implantacao-vm.md](docs/07-implantacao-vm.md).

@@ -1,0 +1,137 @@
+# MedicalField — sistema completo em containers.
+#
+#   ./mf.sh subir      constrói e sobe tudo
+#   ./mf.sh status     mostra os containers
+#   ./mf.sh ajuda      lista os outros comandos
+#
+# Só a porta do gateway (80) fica aberta para fora. Os serviços conversam pela rede
+# interna "medicalfield", usando o nome do serviço como endereço (ex.: http://clinical:3001).
+
+name: medicalfield
+
+x-chave-publica: &chave-publica
+  JWT_PUBLIC_KEY_PATH: /chaves/jwt-public.pem
+
+services:
+  # ---------------------------------------------------------------- Banco central
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD}
+      PW_IDENTITY: ${PW_IDENTITY}
+      PW_CLINICAL: ${PW_CLINICAL}
+      PW_DOCUMENT: ${PW_DOCUMENT}
+      TZ: America/Sao_Paulo
+    volumes:
+      - banco:/var/lib/postgresql/data
+      - ./infra/docker/postgres/01-criar-banco.sh:/docker-entrypoint-initdb.d/01-criar-banco.sh:ro
+      - ./infra/db/init.sql:/medicalfield/init.sql:ro
+      - ./infra/db/roteiro:/medicalfield/roteiro:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d medicalfield"]
+      interval: 3s
+      retries: 30
+
+  # ------------------------------------------------- Chaves do JWT (roda e termina)
+  chaves:
+    image: alpine/openssl:3.3.2
+    entrypoint: ["/bin/sh", "/gerar.sh"]
+    user: root
+    volumes:
+      - chaves:/chaves
+      - ./infra/docker/chaves/gerar.sh:/gerar.sh:ro
+
+  # ------------------------------------------------ identity-service · Java
+  identity:
+    build: ./services/identity-service
+    image: medicalfield/identity-service
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/medicalfield?currentSchema=identity
+      SPRING_DATASOURCE_USERNAME: mf_identity
+      SPRING_DATASOURCE_PASSWORD: ${PW_IDENTITY}
+      JWT_PRIVATE_KEY_PATH: /chaves/jwt-private.pem
+      <<: *chave-publica
+      MEDICALFIELD_SEED_SENHA: ${SENHA_DEMO:-medicalfield}
+      TZ: America/Sao_Paulo
+    volumes:
+      - chaves:/chaves:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      chaves: { condition: service_completed_successfully }
+
+  # ---------------------------------------------- clinical-service · TypeScript
+  clinical:
+    build:
+      context: .
+      dockerfile: services/clinical-service/Dockerfile
+    image: medicalfield/clinical-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://mf_clinical:${PW_CLINICAL}@postgres:5432/medicalfield
+      <<: *chave-publica
+      SEED_DEMO: "true"
+      TZ: America/Sao_Paulo
+    volumes:
+      - chaves:/chaves:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      chaves: { condition: service_completed_successfully }
+
+  # ---------------------------------------------- document-service · Python
+  document:
+    build: ./services/document-service
+    image: medicalfield/document-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://mf_document:${PW_DOCUMENT}@postgres:5432/medicalfield
+      <<: *chave-publica
+      CLINICAL_BASE_URL: http://clinical:3001
+      # E-mails vão para a caixa de demonstração (Mailpit). Para envio real, troque os SMTP_* no .env.
+      SMTP_HOST: ${SMTP_HOST:-email}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_FROM: ${SMTP_FROM:-MedicalField <nao-responda@medicalfield.local>}
+      TZ: America/Sao_Paulo
+    volumes:
+      - chaves:/chaves:ro
+      - emails:/var/lib/medicalfield/mail
+    depends_on:
+      postgres: { condition: service_healthy }
+      chaves: { condition: service_completed_successfully }
+      clinical: { condition: service_started }
+
+  # -------------------------------------- Caixa de e-mails da demonstração
+  email:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    environment:
+      MP_WEBROOT: email
+      MP_MAX_MESSAGES: 500
+
+  # ---------------------------------- Gateway Nginx + telas (cliente e portal)
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/docker/gateway/Dockerfile
+    image: medicalfield/gateway
+    restart: unless-stopped
+    ports:
+      - "${PORTA:-80}:80"
+    depends_on:
+      - identity
+      - clinical
+      - document
+      - email
+
+volumes:
+  banco:
+  chaves:
+  emails:
+
+networks:
+  default:
+    name: medicalfield

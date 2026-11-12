@@ -39,7 +39,7 @@
 |---|---|---|
 | RNF01 | ≥ 3 serviços em **linguagens diferentes** | **Java** (identity), **TypeScript** (clinical), **Python** (document) |
 | RNF02 | **Persistência dual** | PostgreSQL 16 (central) + IndexedDB/Dexie (embarcado no cliente) |
-| RNF03 | Rodar na **VM da Univates**, sem contêineres | Nginx + systemd + PostgreSQL nativos ([07](07-implantacao-vm.md)) |
+| RNF03 | Rodar na **VM da Univates** (contêineres opcionais) | **Docker Compose**: um container por serviço + PostgreSQL + Nginx ([07](07-implantacao-vm.md)); scripts sem Docker mantidos como alternativa |
 | RNF04 | Todas as rotas autenticadas, exceto login | JWT RS256 validado em cada serviço; só `POST /auth/login` é pública |
 | RNF05 | **Log de acesso** em todos os serviços | Middleware/filtro nos três serviços com data/hora, IP, profissional, método, rota, status e tempo (ms) |
 | RNF06 | Idempotência | `Idempotency-Key` em toda escrita + IDs UUID v7 gerados no aparelho |
