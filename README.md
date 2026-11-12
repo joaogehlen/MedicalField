@@ -39,13 +39,19 @@ Padrões de projeto: **Repository**, **Strategy** e **Observer** (exigidos), mai
 **No Windows, siga o passo a passo em [COMO-RODAR.md](COMO-RODAR.md)** (instalação do WSL, download para a Área de Trabalho, logins e roteiro).
 
 ```bash
-infra/scripts/start-all.sh          # banco, build, três serviços e Nginx
+infra/scripts/start-all.sh          # sem Docker: banco, build, três serviços e Nginx
 # Cliente:  http://localhost:8080/app/       CRM 12345 / RS · senha medicalfield
 # Portal:   http://localhost:8080/portal/    ID Socorrista 0001 · senha medicalfield
 # API:      http://localhost:8080/api        (coleção em postman/)
 ```
 
-Na VM da Univates: `sudo infra/scripts/deploy-vm.sh` ([guia](docs/07-implantacao-vm.md)).
+**Com Docker (VM da Univates)** — tudo em containers, um comando ([guia](docs/07-implantacao-vm.md)):
+
+```bash
+./mf.sh instalar-docker   # só na primeira vez
+./mf.sh subir             # http://<ip>/app/ · /portal/ · /email/ · /api
+./mf.sh ajuda             # status, logs, passo 9 do roteiro, zerar…
+```
 
 ## Roteiro de testes
 

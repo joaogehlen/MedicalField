@@ -1,96 +1,105 @@
-# 07 — Implantação na VM da Univates
+# 07 — Implantação na VM da Univates (Docker)
 
-Execução direta no sistema operacional, sem contêineres (RNF03). Tudo o que está aqui foi automatizado em `infra/scripts/deploy-vm.sh`.
+O sistema inteiro roda em **containers Docker**, descritos num único arquivo: [`docker-compose.yml`](../docker-compose.yml). Todos os comandos do dia a dia estão em [`mf.sh`](../mf.sh).
 
-## 1. Processos e portas
+## 1. Containers
 
-| Processo | Porta | Escuta | Unit |
-|---|---|---|---|
-| Nginx (gateway + SPAs) | 80 | todas | `nginx.service` |
-| identity-service (Java) | 8081 | 127.0.0.1 | `medicalfield-identity.service` |
-| clinical-service (TypeScript) | 3001 | 127.0.0.1 | `medicalfield-clinical.service` |
-| document-service (Python) | 8000 | 127.0.0.1 | `medicalfield-document.service` |
-| PostgreSQL 16 | 5432 | 127.0.0.1 | `postgresql.service` |
+```mermaid
+flowchart LR
+    navegador(["🌐 Navegador<br/>(celular / notebook)"]) -- "porta 80" --> gateway
+    subgraph docker["🐳 Docker na VM — rede interna 'medicalfield'"]
+        gateway["gateway<br/>Nginx + telas<br/>(cliente e portal)"]
+        identity["identity<br/>Java · Spring Boot<br/>:8081"]
+        clinical["clinical<br/>TypeScript · NestJS<br/>:3001"]
+        document["document<br/>Python · FastAPI<br/>:8000"]
+        email["email<br/>Mailpit<br/>(caixa de demonstração)"]
+        postgres[("postgres<br/>PostgreSQL 16")]
+        chaves["chaves<br/>(gera as chaves do JWT<br/>e termina)"]
+        gateway -- "/api/auth · profissional · log" --> identity
+        gateway -- "/api/ficha" --> document
+        gateway -- "demais /api" --> clinical
+        gateway -- "/email" --> email
+        document -- "dados do atendimento" --> clinical
+        document -- "SMTP" --> email
+        identity & clinical & document --> postgres
+    end
+```
 
-Só o Nginx fica exposto.
+| Container | Imagem | O que faz |
+|---|---|---|
+| `gateway` | construída de `infra/docker/gateway/Dockerfile` | Nginx: serve o **cliente** (`/app`) e o **portal** (`/portal`) e encaminha `/api/*` aos serviços. É o **único com porta aberta** (80). |
+| `identity` | `services/identity-service/Dockerfile` | Java 21 · Spring Boot — login, profissionais, logs do aparelho |
+| `clinical` | `services/clinical-service/Dockerfile` | TypeScript · NestJS — pessoas, prontuários, atendimentos, sincronização |
+| `document` | `services/document-service/Dockerfile` | Python · FastAPI — ficha em PDF e e-mail |
+| `postgres` | `postgres:16-alpine` | Banco central; um *schema* e um usuário por serviço (`infra/db/init.sql`) |
+| `email` | `axllent/mailpit` | Caixa de e-mails da demonstração, em `/email/` |
+| `chaves` | `alpine/openssl` | Gera o par de chaves RSA do JWT na primeira subida e termina |
 
-## 2. Pré-requisitos (Ubuntu)
+Cada Dockerfile tem **duas etapas**: uma compila (Maven, npm) e a outra fica só com o necessário para rodar. Os dados ficam em **volumes**: `banco` (PostgreSQL), `chaves` (JWT) e `emails`.
+
+## 2. Primeira instalação na VM
+
+No seu computador, entre na VM por SSH (troque `<IP-da-VM>` pelo endereço recebido por e-mail):
 
 ```bash
-sudo apt update
-sudo apt install -y nginx postgresql openjdk-21-jdk maven python3 python3-venv rsync \
-                    libpango-1.0-0 libpangoft2-1.0-0   # WeasyPrint (PDF)
-# Node.js 22 LTS (NodeSource):
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
+ssh univates@<IP-da-VM>
+passwd                      # no primeiro acesso: troque a senha
 ```
 
-## 3. Implantar
+Na VM:
 
 ```bash
-git clone <repositório> medicalfield && cd medicalfield
-sudo infra/scripts/deploy-vm.sh
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/joaogehlen/MedicalField.git
+cd MedicalField
+./mf.sh instalar-docker                     # instala o Docker (e swap, se a VM tiver pouca memória)
+MF_ENDERECO=<IP-da-VM> ./mf.sh subir        # constrói as imagens e sobe tudo (~10 min na 1ª vez)
 ```
 
-O script, de forma idempotente:
-1. cria o usuário de sistema `medicalfield` e as pastas `/opt/medicalfield`, `/etc/medicalfield`, `/var/www/medicalfield` e `/var/lib/medicalfield/{fichas,mail}`;
-2. gera senhas e cria banco, usuários e *schemas* (`infra/db/init.sql`);
-3. gera o par de chaves JWT (`/etc/medicalfield/jwt-*.pem`);
-4. escreve `/etc/medicalfield/{identity,clinical,document}.env` (só na primeira vez);
-5. compila tudo (`npm run build`, `mvn package`) e copia os artefatos;
-6. instala os *units* do systemd (`infra/systemd/`) e o site do Nginx (gerado de `infra/nginx/medicalfield.conf.template`);
-7. reinicia os serviços. Na primeira subida, as migrações criam as tabelas e os dados de demonstração.
+No fim aparecem os links:
 
-Acesso: `http://<ip-da-vm>/portal/` e `http://<ip-da-vm>/app/`. API para o Postman: `http://<ip-da-vm>/api`.
+| O quê | Endereço | Login |
+|---|---|---|
+| Cliente (socorrista) | `http://<IP-da-VM>/app/` | CRM `12345` / RS · senha `medicalfield` |
+| Portal (central) | `http://<IP-da-VM>/portal/` | Socorrista `0001` · senha `medicalfield` |
+| Caixa de e-mails | `http://<IP-da-VM>/email/` | — |
+| API (Postman) | `http://<IP-da-VM>/api` | variável `baseUrl` da coleção |
 
-## 4. Estrutura na VM
+Na primeira subida, `./mf.sh` cria o arquivo `.env` com **senhas aleatórias** do banco (ele não vai para o GitHub). As migrações criam as tabelas e os dados de demonstração.
 
-```
-/opt/medicalfield/
-  identity-service/identity-service.jar
-  clinical-service/{dist,migrations,seeds,node_modules}
-  document-service/{app,migrations,.venv}
-/etc/medicalfield/   identity.env clinical.env document.env db-passwords jwt-private.pem jwt-public.pem
-/var/www/medicalfield/{app,portal}
-/var/lib/medicalfield/{fichas,mail}
-```
+## 3. Comandos (`./mf.sh`)
 
-## 5. E-mail
-
-Sem `SMTP_HOST`, o document-service grava cada e-mail completo, com o PDF anexo, em `/var/lib/medicalfield/mail/*.eml` (abre em qualquer cliente de e-mail). Para envio real, preencha em `/etc/medicalfield/document.env`:
-
-```ini
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=conta.demo@gmail.com
-SMTP_PASSWORD=<senha de app>
-SMTP_FROM="MedicalField <conta.demo@gmail.com>"
-```
-e `sudo systemctl restart medicalfield-document`. Teste isso cedo: algumas redes bloqueiam a porta 587.
-
-## 6. Operação
-
-| Tarefa | Comando |
+| Comando | O que faz |
 |---|---|
-| Situação | `systemctl status 'medicalfield-*'` |
-| Logs (inclui log de acesso em JSON) | `journalctl -u medicalfield-clinical -f` |
-| Reiniciar | `sudo systemctl restart medicalfield-identity medicalfield-clinical medicalfield-document` |
-| Zerar para ensaiar o roteiro | `sudo -u postgres psql -d medicalfield -c 'DROP SCHEMA identity, clinical, document CASCADE'` → `sudo infra/scripts/deploy-vm.sh` |
-| Passo 9 do roteiro | `sudo -u postgres psql -d medicalfield -f infra/db/roteiro/passo-09-novos-medicamentos.sql` |
+| `./mf.sh subir` | constrói e sobe todos os containers |
+| `./mf.sh status` | lista os containers e o estado de cada um |
+| `./mf.sh enderecos` | mostra os links |
+| `./mf.sh logs clinical` | acompanha o log de um serviço (`identity`, `clinical`, `document`, `gateway`, `postgres`) |
+| `./mf.sh passo9` | **passo 9 do roteiro**: insere Cetoprofeno e Salbutamol direto no banco |
+| `./mf.sh acessos clinical` | últimas linhas do **log de acesso** de um serviço |
+| `./mf.sh banco` | abre o `psql` no banco |
+| `./mf.sh zerar` | apaga os dados e volta à demonstração inicial (antes de ensaiar o roteiro) |
+| `./mf.sh parar` | para tudo (os dados ficam guardados) |
+| `./mf.sh atualizar` | `git pull` + subir de novo |
 
-## 7. Riscos de ambiente
+Os containers têm `restart: unless-stopped`: se a VM reiniciar, o sistema volta sozinho.
 
-| Risco | Mitigação |
+## 4. E-mail
+
+Por padrão o document-service entrega os e-mails ao container **Mailpit**: abra `http://<IP-da-VM>/email/` para ver a mensagem com a ficha em PDF anexa (ótimo para a apresentação, sem depender de conta de e-mail).
+
+Para envio real (ex.: Gmail com senha de app), descomente e preencha os `SMTP_*` do arquivo `.env` na VM e rode `./mf.sh subir`. Teste cedo: algumas redes bloqueiam a porta 587.
+
+## 5. Problemas comuns
+
+| Sintoma | Solução |
 |---|---|
-| Porta SMTP bloqueada | Use o modo arquivo (`.eml`) na apresentação. |
-| Pouca memória | A JVM é limitada a `-Xmx384m`; o resto ocupa ~250 MB. |
-| Firewall só libera a 80 | Tudo passa pelo Nginx. |
+| `permission denied ... docker.sock` | O `mf.sh` usa `sudo` sozinho; para não precisar, saia e entre de novo no SSH depois do `instalar-docker`. |
+| Build parou com `Killed` | Pouca memória. Rode `./mf.sh instalar-docker` (cria swap) e `./mf.sh subir` de novo. |
+| A página não abre de fora, mas `./mf.sh status` mostra tudo `Up` | A porta 80 pode estar fechada no firewall da Univates. Teste outra: `PORTA=8080` no `.env`, `./mf.sh subir` e acesse `http://<IP-da-VM>:8080/portal/`. |
+| `port is already allocated` | Outro programa usa a porta 80 (`sudo ss -ltnp | grep :80`). Pare-o ou troque `PORTA` no `.env`. |
+| Um serviço reinicia sem parar | `./mf.sh logs <serviço>` mostra o erro. |
 
-## 8. Ambiente local (desenvolvimento)
+## 6. Sem Docker (alternativa)
 
-O mesmo arranjo roda numa máquina de desenvolvimento, com o Nginx na porta 8080:
-
-```bash
-infra/scripts/start-all.sh    # setup + build + serviços + nginx → http://localhost:8080
-infra/scripts/stop-all.sh
-infra/scripts/reset-db.sh     # zera os três schemas
-```
+Os scripts originais continuam no projeto para rodar direto no sistema operacional (Nginx + systemd): `sudo infra/scripts/deploy-vm.sh` na VM, ou `infra/scripts/start-all.sh` para desenvolvimento local (ver [COMO-RODAR.md](../COMO-RODAR.md)).

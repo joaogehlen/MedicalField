@@ -18,10 +18,13 @@ MedicalField/
 │   ├── shared/                 # tipos, schemas zod, escalas, regras clínicas (+ testes)
 │   └── design/                 # theme.css (tema sobre Bootstrap) · fontes · img/ (fotos e créditos)
 ├── services/
-│   ├── identity-service/       # Java 21 · Spring Boot (Maven)
-│   ├── clinical-service/       # TypeScript · NestJS (migrations/, seeds/, src/)
-│   └── document-service/       # Python · FastAPI (app/, migrations/, tests/)
+│   ├── identity-service/       # Java 21 · Spring Boot (Maven) + Dockerfile
+│   ├── clinical-service/       # TypeScript · NestJS (migrations/, seeds/, src/) + Dockerfile
+│   └── document-service/       # Python · FastAPI (app/, migrations/, tests/) + Dockerfile
+├── docker-compose.yml          # sistema completo em containers (VM)
+├── mf.sh                       # comandos: subir, status, logs, passo9, zerar…
 ├── infra/
+│   ├── docker/                 # gateway (Nginx + telas), init do postgres, geração das chaves
 │   ├── db/                     # init.sql · roteiro/passo-09-novos-medicamentos.sql
 │   ├── nginx/                  # medicalfield.conf.template
 │   ├── systemd/                # units dos três serviços

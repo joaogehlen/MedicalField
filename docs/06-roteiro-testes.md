@@ -6,9 +6,9 @@ Os 17 passos oficiais, com a ação, a API envolvida e o resultado esperado. O r
 
 | # | Item | Como |
 |---|---|---|
-| P1 | Banco zerado com dados de demonstração | `infra/scripts/reset-db.sh` e `infra/scripts/start-all.sh` (na VM: [07](07-implantacao-vm.md)) |
+| P1 | Banco zerado com dados de demonstração | Na VM: `./mf.sh zerar` ([07](07-implantacao-vm.md)). Local sem Docker: `infra/scripts/reset-db.sh` e `infra/scripts/start-all.sh` |
 | P2 | Duas janelas | Portal (`/portal`) à esquerda; cliente (`/app`) à direita, ou no celular |
-| P3 | Terminal com `psql` | para o passo 9 |
+| P3 | Terminal SSH na VM | para o passo 9 (`./mf.sh passo9`) |
 | P4 | Postman | `postman/MedicalField.postman_collection.json` (opcional, para mostrar as rotas) |
 
 | Acesso | Tipo | Número | Senha (demo) |
@@ -30,7 +30,7 @@ Os 17 passos oficiais, com a ação, a API envolvida e o resultado esperado. O r
 | 6 | Cliente | **Sincronizar → Receber** | `GET /sync/pull?cursor=0` | “Dados neste aparelho”: 2 pacientes, 2 atendimentos, 8 medicamentos. |
 | 7 | Cliente | **Online:** Pacientes → João → Novo atendimento → preencher → **Salvar atendimento** | `POST /atendimento` | Selo “Na central” logo em seguida (Outbox enviada na hora). |
 | 8 | Portal | Clicar em **Atendimentos** | `GET /atendimento` | O atendimento do passo 7 aparece; o detalhe mostra sinais e medicamento. |
-| 9 | Banco | `psql … -f infra/db/roteiro/passo-09-novos-medicamentos.sql` | — (SQL) | Cetoprofeno e Salbutamol inseridos; o *trigger* preenche `change_seq`. |
+| 9 | Banco | `./mf.sh passo9` (roda `infra/db/roteiro/passo-09-novos-medicamentos.sql` no `psql` do container) | — (SQL) | Cetoprofeno e Salbutamol inseridos; o *trigger* preenche `change_seq`. |
 | 10 | Portal | Atendimentos (e Cadastros) | `GET /atendimento`, `/medicamento` | Atendimentos inalterados; 10 medicamentos em Cadastros. |
 | 11 | Cliente | Sincronizar → Receber | `GET /sync/pull?cursor=<último>` | “10 medicamentos”: só o que mudou foi transferido. |
 | 12 | Cliente | **Chave em Offline** (faixa amarela e preta). Nova ocorrência → vítima (CPF, contato com e-mail) → prontuário (alergia **Dipirona**) → atendimento (Manchester Laranja). Tentar **Dipirona** → “Administração bloqueada”. Adicionar Cetoprofeno → Salvar. | nenhuma (sem rede) | “3 pendentes”; registros com selos “Registrado offline” e “Só no aparelho”. |
@@ -38,7 +38,7 @@ Os 17 passos oficiais, com a ação, a API envolvida e o resultado esperado. O r
 | 14 | Cliente | **Chave em Online** | `POST /pessoa`, `/prontuario`, `/atendimento`, `/log`, `GET /sync/pull` | Envio automático (Observer). Barra superior: “Tudo na central”. |
 | 15 | Portal | Clicar em Prontuários e em Atendimentos | `GET /prontuario`, `/atendimento` | A vítima **aparece**, com o selo “Registrado offline”. |
 | 16 | Portal | Abrir o atendimento → **Gerar ficha (PDF)** | `GET /ficha/{id}/pdf` | PDF abre em nova aba. |
-| 17 | Portal | **Enviar ficha** (o e-mail do familiar já vem preenchido) | `POST /ficha/{id}/email` | “Ficha enviada para ana.ramos@…”; e-mail com o PDF anexo (caixa real com SMTP, ou `.eml` em `.runtime/mail/`). |
+| 17 | Portal | **Enviar ficha** (o e-mail do familiar já vem preenchido) | `POST /ficha/{id}/email` | “Ficha enviada para ana.ramos@…”; e-mail com o PDF anexo — abrir `http://<IP-da-VM>/email/` (caixa de demonstração) ou a caixa real, se houver SMTP configurado. |
 
 ## Capturas da execução
 
@@ -69,9 +69,9 @@ Os 17 passos oficiais, com a ação, a API envolvida e o resultado esperado. O r
 ## Rodar o roteiro automático
 
 ```bash
-infra/scripts/reset-db.sh && infra/scripts/start-all.sh
+./mf.sh zerar                                   # ou, sem Docker: infra/scripts/reset-db.sh && infra/scripts/start-all.sh
 cd tests/e2e && npm install && npx playwright install chromium
-node roteiro.mjs            # MF_URL=http://<vm> para rodar contra a VM
+MF_DOCKER=1 MF_URL=http://localhost node roteiro.mjs   # sem Docker: node roteiro.mjs
 ```
 
 ## Testes automatizados
