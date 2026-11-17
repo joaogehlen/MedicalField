@@ -83,7 +83,7 @@ case "$cmd" in
     sudo apt-get install -y -q docker.io docker-compose-v2 curl openssl \
       || { aviso "pacotes do Ubuntu indisponíveis; usando o instalador oficial"; curl -fsSL https://get.docker.com | sudo sh; }
     sudo systemctl enable --now docker
-    sudo usermod -aG docker "$USER" || true
+    sudo usermod -aG docker "${USER:-$(whoami)}" || true
     # Compilar Java e Node precisa de memória: com menos de 3 GB de RAM e sem swap, cria 2 GB de swap.
     if [[ "$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)" -lt 3000 ]] && [[ -z "$(swapon --show 2>/dev/null)" ]]; then
       sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile >/dev/null && sudo swapon /swapfile
@@ -146,6 +146,32 @@ case "$cmd" in
     compose exec postgres psql -U postgres -d medicalfield
     ;;
 
+  dbeaver)
+    [[ -f .env ]] || erro "rode ./mf.sh subir primeiro"
+    senha="$(grep -E '^PG_SUPERUSER_PASSWORD=' .env | cut -d= -f2)"
+    pb="$(grep -E '^PORTA_BANCO=' .env | cut -d= -f2 || true)"
+    ip="$(grep -E '^ENDERECO=' .env | cut -d= -f2 || true)"
+    titulo "Dados para conectar o DBeaver (no seu computador)"
+    cat <<DADOS
+
+  Aba "Main" (Principal)
+    Host:      localhost
+    Port:      ${pb:-5432}
+    Database:  medicalfield
+    Username:  postgres
+    Password:  $senha
+
+  Aba "SSH"  → marque "Use SSH Tunnel"
+    Host/IP:   ${ip:-<IP-da-VM>}
+    Port:      22
+    User Name: ${USER:-$(whoami)}
+    Password:  a senha que você usa no ssh
+
+  O banco não fica aberto para a internet: o DBeaver entra pelo SSH e,
+  de dentro da VM, conecta em localhost:${pb:-5432}.
+DADOS
+    ;;
+
   acessos)
     servico="${1:-clinical}"
     [[ "$servico" =~ ^(identity|clinical|document)$ ]] || erro "use: ./mf.sh acessos identity|clinical|document"
@@ -173,6 +199,7 @@ MedicalField — comandos (rode dentro da pasta do projeto)
   ./mf.sh passo9            passo 9 do roteiro: insere medicamentos direto no banco
   ./mf.sh acessos [serviço] últimas linhas do log de acesso (identity, clinical, document)
   ./mf.sh banco             abre o psql no banco
+  ./mf.sh dbeaver           mostra os dados para conectar o DBeaver (túnel SSH)
   ./mf.sh zerar             apaga os dados e volta à demonstração inicial
   ./mf.sh parar             para tudo (os dados ficam guardados)
   ./mf.sh atualizar         git pull + subir

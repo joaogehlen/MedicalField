@@ -23,6 +23,9 @@ services:
       PW_CLINICAL: ${PW_CLINICAL}
       PW_DOCUMENT: ${PW_DOCUMENT}
       TZ: America/Sao_Paulo
+    # Só para a própria VM (127.0.0.1): fora dela, o banco é alcançado por túnel SSH (DBeaver).
+    ports:
+      - "127.0.0.1:${PORTA_BANCO:-5432}:5432"
     volumes:
       - banco:/var/lib/postgresql/data
       - ./infra/docker/postgres/01-criar-banco.sh:/docker-entrypoint-initdb.d/01-criar-banco.sh:ro

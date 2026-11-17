@@ -78,19 +78,30 @@ Na primeira subida, `./mf.sh` cria o arquivo `.env` com **senhas aleatórias** d
 | `./mf.sh passo9` | **passo 9 do roteiro**: insere Cetoprofeno e Salbutamol direto no banco |
 | `./mf.sh acessos clinical` | últimas linhas do **log de acesso** de um serviço |
 | `./mf.sh banco` | abre o `psql` no banco |
+| `./mf.sh dbeaver` | mostra os dados para conectar o DBeaver pelo túnel SSH |
 | `./mf.sh zerar` | apaga os dados e volta à demonstração inicial (antes de ensaiar o roteiro) |
 | `./mf.sh parar` | para tudo (os dados ficam guardados) |
 | `./mf.sh atualizar` | `git pull` + subir de novo |
 
 Os containers têm `restart: unless-stopped`: se a VM reiniciar, o sistema volta sozinho.
 
-## 4. E-mail
+## 4. Ver o banco no DBeaver (túnel SSH)
+
+O PostgreSQL só aceita conexões **de dentro da VM** (`127.0.0.1:5432`). O DBeaver chega nele por um túnel SSH, sem abrir porta nenhuma para a internet.
+
+1. Na VM, rode `./mf.sh dbeaver`: ele mostra a senha do banco e os dados da conexão.
+2. No DBeaver: **Nova conexão → PostgreSQL**.
+   - Aba **Main**: Host `localhost`, Port `5432`, Database `medicalfield`, Username `postgres`, Password = a mostrada no passo 1.
+   - Aba **SSH**: marque **Use SSH Tunnel**; Host `<IP-da-VM>`, Port `22`, User `univates`, autenticação por senha (a do SSH).
+3. **Test Connection** → **Finish**. Os dados ficam em `medicalfield → Schemas → clinical / identity / document`.
+
+## 5. E-mail
 
 Por padrão o document-service entrega os e-mails ao container **Mailpit**: abra `http://<IP-da-VM>/email/` para ver a mensagem com a ficha em PDF anexa (ótimo para a apresentação, sem depender de conta de e-mail).
 
 Para envio real (ex.: Gmail com senha de app), descomente e preencha os `SMTP_*` do arquivo `.env` na VM e rode `./mf.sh subir`. Teste cedo: algumas redes bloqueiam a porta 587.
 
-## 5. Problemas comuns
+## 6. Problemas comuns
 
 | Sintoma | Solução |
 |---|---|
@@ -100,6 +111,6 @@ Para envio real (ex.: Gmail com senha de app), descomente e preencha os `SMTP_*`
 | `port is already allocated` | Outro programa usa a porta 80 (`sudo ss -ltnp | grep :80`). Pare-o ou troque `PORTA` no `.env`. |
 | Um serviço reinicia sem parar | `./mf.sh logs <serviço>` mostra o erro. |
 
-## 6. Sem Docker (alternativa)
+## 7. Sem Docker (alternativa)
 
 Os scripts originais continuam no projeto para rodar direto no sistema operacional (Nginx + systemd): `sudo infra/scripts/deploy-vm.sh` na VM, ou `infra/scripts/start-all.sh` para desenvolvimento local (ver [COMO-RODAR.md](../COMO-RODAR.md)).
