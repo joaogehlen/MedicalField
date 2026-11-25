@@ -17,7 +17,9 @@ export interface ComRelogio {
   atualizadoEmCliente: string;
 }
 
-// O contrato comum de todas as estratégias.
+// O CONTRATO
+// Toda estratégia recebe as duas versões do registro (a que está no banco e a que acabou de chegar)
+// e devolve a versão final. O "nome" vai para o histórico de conflitos (tabela sync_conflito).
 export interface ConflictResolutionStrategy<T> {
   readonly nome: NomeEstrategia;
   resolve(servidor: T, recebido: T): T;
@@ -26,7 +28,9 @@ export interface ConflictResolutionStrategy<T> {
 const recebidoMaisRecente = (s: ComRelogio, r: ComRelogio) =>
   Date.parse(r.atualizadoEmCliente) >= Date.parse(s.atualizadoEmCliente);
 
-/** Last-write-wins: vence a edição com o horário mais recente no aparelho. */
+// ESTRATÉGIA 1 — LAST WRITE WINS (usada em Pessoa)
+// Compara o horário em que cada aparelho fez a edição (atualizadoEmCliente).
+// Fica a versão editada por último; a outra é descartada.
 export class LastWriteWinsStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
   readonly nome = 'LWW' as const;
   resolve(servidor: T, recebido: T): T {
@@ -34,10 +38,10 @@ export class LastWriteWinsStrategy<T extends ComRelogio> implements ConflictReso
   }
 }
 
-/**
- * Mescla: campos simples por last-write-wins e listas por união — uma alergia
- * registrada por qualquer equipe nunca se perde.
- */
+// ESTRATÉGIA 2 — MESCLA (usada em Prontuário)
+// Campos simples (tipo sanguíneo, observações): vence o mais recente, igual à estratégia 1.
+// Listas (alergias, comorbidades): junta as duas versões. Se uma equipe anotou "Penicilina" e
+// outra anotou "Látex", ficam as duas: perder uma alergia seria perigoso para o paciente.
 export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
   readonly nome = 'MESCLA' as const;
   private readonly lww = new LastWriteWinsStrategy<T>();
@@ -53,7 +57,9 @@ export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionSt
   }
 }
 
-/** O registro do servidor prevalece (atendimento registrado é imutável). */
+// ESTRATÉGIA 3 — SERVIDOR VENCE (usada em Atendimento)
+// Um atendimento já registrado na central é um documento: não pode ser trocado depois.
+// Então o que chegou é ignorado e fica a versão que já estava no banco.
 export class ServerWinsStrategy<T> implements ConflictResolutionStrategy<T> {
   readonly nome = 'SERVIDOR_VENCE' as const;
   resolve(servidor: T): T {

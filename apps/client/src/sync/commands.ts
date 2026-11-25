@@ -10,11 +10,16 @@ import type { Table } from 'dexie';
 import { db, type OperacaoOutbox } from '../data/db';
 import { remoto } from '../data/repositories';
 
-// Todo comando só precisa saber se executar.
+// O CONTRATO
+// Um comando é qualquer objeto que sabe se executar. Quem executa (o SyncEngine) não precisa
+// saber se é uma pessoa, um prontuário ou um atendimento.
 export interface OutboxCommand {
   execute(): Promise<void>;
 }
 
+// O COMANDO
+// Guarda o pedido da fila (op), a tabela do aparelho e o destino na central.
+// Ele envia o estado ATUAL do registro: se a pessoa foi editada 3 vezes offline, vai a última versão.
 class UpsertCommand<L extends { id: string; version?: number; syncStatus: string }> implements OutboxCommand {
   constructor(
     private readonly op: OperacaoOutbox,
@@ -22,7 +27,8 @@ class UpsertCommand<L extends { id: string; version?: number; syncStatus: string
     private readonly destino: { salvar(registro: unknown, opId: string): Promise<{ registro: unknown }> },
   ) {}
 
-  // Executar o pedido: 1) pega o registro no aparelho  2) envia à central  3) marca como sincronizado.
+  // EXECUTAR: 1) pega o registro no aparelho  2) envia à central com a baseVersion (para detectar
+  // conflito)  3) grava a resposta da central no aparelho, marcada como SINCRONIZADO.
   async execute() {
     const registro = await this.tabela.get(this.op.entidadeId);
     if (!registro) return;
@@ -33,7 +39,9 @@ class UpsertCommand<L extends { id: string; version?: number; syncStatus: string
   }
 }
 
-// Transforma um item da fila no comando certo.
+// A FÁBRICA
+// Lê o tipo do item da fila e monta o comando certo, já ligado à tabela e à rota da API certas.
+// O SyncEngine só faz: comandoPara(item).execute().
 export function comandoPara(op: OperacaoOutbox): OutboxCommand {
   switch (op.tipo) {
     case 'PESSOA':

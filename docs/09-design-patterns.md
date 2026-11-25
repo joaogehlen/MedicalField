@@ -22,52 +22,60 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** O cliente tem dois lugares de dados: o banco do próprio aparelho (IndexedDB, que funciona sem internet) e a API da central. Se cada tela falasse direto com o IndexedDB ou com a API, o código ficaria espalhado e trocar o armazenamento exigiria mexer em todas as telas.
 
-**A interface e a implementação local (Dexie/IndexedDB)** — `apps/client/src/data/repositories.ts` (linhas 14–29)
+**A interface e a implementação local (Dexie/IndexedDB)** — `apps/client/src/data/repositories.ts` (linhas 14–33)
 
 ```ts
- 14  // O contrato: todo repositório sabe buscar e listar.
- 15  export interface Repository<T> {
- 16    buscar(id: string): Promise<T | undefined>;
- 17    listar(): Promise<T[]>;
- 18  }
- 19  
- 20  // Qualquer tabela do IndexedDB vira um repositório.
- 21  class LocalRepository<T> implements Repository<T> {
- 22    constructor(protected readonly tabela: Table<T, string>) {}
- 23    async buscar(id: string) {
- 24      return this.tabela.get(id);
- 25    }
- 26    async listar() {
- 27      return this.tabela.toArray();
- 28    }
- 29  }
+ 14  // O CONTRATO
+ 15  // Todo repositório sabe fazer duas coisas: buscar um registro pelo id e listar todos.
+ 16  // A tela só conhece estes dois métodos; não sabe se por trás tem IndexedDB, API ou outra coisa.
+ 17  export interface Repository<T> {
+ 18    buscar(id: string): Promise<T | undefined>;
+ 19    listar(): Promise<T[]>;
+ 20  }
+ 21  
+ 22  // O REPOSITÓRIO LOCAL
+ 23  // Recebe uma tabela do IndexedDB (o banco do navegador) e implementa o contrato em cima dela:
+ 24  // buscar = tabela.get(id), listar = tabela.toArray(). Funciona sem internet, porque é tudo no aparelho.
+ 25  class LocalRepository<T> implements Repository<T> {
+ 26    constructor(protected readonly tabela: Table<T, string>) {}
+ 27    async buscar(id: string) {
+ 28      return this.tabela.get(id);
+ 29    }
+ 30    async listar() {
+ 31      return this.tabela.toArray();
+ 32    }
+ 33  }
 ```
 
-**Os repositórios prontos: local.* (aparelho) e remoto.* (API)** — `apps/client/src/data/repositories.ts` (linhas 54–75)
+**Os repositórios prontos: local.* (aparelho) e remoto.* (API)** — `apps/client/src/data/repositories.ts` (linhas 59–84)
 
 ```ts
- 54  // O que as telas usam: local.pessoas.listar(), local.prontuarios.daPessoa(id)...
- 55  export const local = {
- 56    pessoas: new PessoasLocais(db.pessoas),
- 57    prontuarios: new ProntuariosLocais(db.prontuarios),
- 58    atendimentos: new AtendimentosLocais(db.atendimentos),
- 59    medicamentos: new LocalRepository(db.medicamentos),
- 60  };
- 61  
- 62  // Repositório da central: um POST na API. O opId vai como Idempotency-Key (reenviar não duplica).
- 63  class RemoteRepository<T> {
- 64    constructor(private readonly rota: string) {}
- 65    salvar(registro: unknown, opId: string) {
- 66      return api<UpsertResponse<T>>('POST', this.rota, registro, opId);
- 67    }
- 68  }
- 69  
- 70  // Usado só pelo envio para a central (commands.ts). As telas nunca chamam a API direto.
- 71  export const remoto = {
- 72    pessoas: new RemoteRepository<PessoaLocal>('/pessoa'),
- 73    prontuarios: new RemoteRepository<ProntuarioLocal>('/prontuario'),
- 74    atendimentos: new RemoteRepository<AtendimentoLocal>('/atendimento'),
- 75  };
+ 59  // O QUE AS TELAS USAM
+ 60  // Um repositório pronto para cada tabela. A tela chama, por exemplo, local.pessoas.listar()
+ 61  // e recebe a lista, sem nenhuma linha de código de banco de dados.
+ 62  export const local = {
+ 63    pessoas: new PessoasLocais(db.pessoas),
+ 64    prontuarios: new ProntuariosLocais(db.prontuarios),
+ 65    atendimentos: new AtendimentosLocais(db.atendimentos),
+ 66    medicamentos: new LocalRepository(db.medicamentos),
+ 67  };
+ 68  
+ 69  // O REPOSITÓRIO REMOTO (a central)
+ 70  // Salvar = um POST na API. O opId vai como Idempotency-Key: se a internet cair no meio e o
+ 71  // mesmo envio for repetido, a central reconhece a chave e não grava duas vezes.
+ 72  class RemoteRepository<T> {
+ 73    constructor(private readonly rota: string) {}
+ 74    salvar(registro: unknown, opId: string) {
+ 75      return api<UpsertResponse<T>>('POST', this.rota, registro, opId);
+ 76    }
+ 77  }
+ 78  
+ 79  // Quem usa o remoto é só o envio para a central (commands.ts). As telas nunca chamam a API direto.
+ 80  export const remoto = {
+ 81    pessoas: new RemoteRepository<PessoaLocal>('/pessoa'),
+ 82    prontuarios: new RemoteRepository<ProntuarioLocal>('/prontuario'),
+ 83    atendimentos: new RemoteRepository<AtendimentoLocal>('/atendimento'),
+ 84  };
 ```
 
 **Como funciona, passo a passo:**
@@ -82,7 +90,7 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 - `apps/client/src/ui/pages/PessoaForm.tsx:14` — a tela de vítima busca a pessoa com local.pessoas.buscar(id)
 - `apps/client/src/ui/pages/Paciente.tsx:12` — a ficha do paciente junta pessoa, prontuário e atendimentos pelos repositórios locais
-- `apps/client/src/sync/commands.ts:40` — o envio para a central usa remoto.pessoas
+- `apps/client/src/sync/commands.ts:48` — o envio para a central usa remoto.pessoas
 
 **Como mostrar ao vivo:** Com a chave em Offline, abra Pacientes: a lista aparece mesmo sem internet, porque vem de local.pessoas.listar(). Para mostrar o banco por baixo: F12 → Application → IndexedDB → medicalfield-v2.
 
@@ -96,52 +104,58 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** Dois socorristas, cada um sem internet, editam o mesmo registro. Quando os dois sincronizam, a central recebe duas versões. Quem vence? A resposta depende do tipo de dado: para uma pessoa, vale a edição mais recente; para alergias, perder uma é perigoso; um atendimento registrado não deve mudar.
 
-**A interface e as três estratégias** — `services/clinical-service/src/sync/strategies.ts` (linhas 20–62)
+**A interface e as três estratégias** — `services/clinical-service/src/sync/strategies.ts` (linhas 20–68)
 
 ```ts
- 20  // O contrato comum de todas as estratégias.
- 21  export interface ConflictResolutionStrategy<T> {
- 22    readonly nome: NomeEstrategia;
- 23    resolve(servidor: T, recebido: T): T;
- 24  }
- 25  
- 26  const recebidoMaisRecente = (s: ComRelogio, r: ComRelogio) =>
- 27    Date.parse(r.atualizadoEmCliente) >= Date.parse(s.atualizadoEmCliente);
- 28  
- 29  /** Last-write-wins: vence a edição com o horário mais recente no aparelho. */
- 30  export class LastWriteWinsStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
- 31    readonly nome = 'LWW' as const;
- 32    resolve(servidor: T, recebido: T): T {
- 33      return recebidoMaisRecente(servidor, recebido) ? recebido : servidor; // o horário mais novo vence
- 34    }
- 35  }
- 36  
- 37  /**
- 38   * Mescla: campos simples por last-write-wins e listas por união — uma alergia
- 39   * registrada por qualquer equipe nunca se perde.
- 40   */
- 41  export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
- 42    readonly nome = 'MESCLA' as const;
- 43    private readonly lww = new LastWriteWinsStrategy<T>();
- 44  
- 45    constructor(private readonly listas: readonly (keyof T)[]) {}
- 46  
- 47    resolve(servidor: T, recebido: T): T {
- 48      const out = { ...this.lww.resolve(servidor, recebido) }; // 1) campos simples: o mais novo vence
- 49      for (const campo of this.listas) { // 2) listas (alergias, comorbidades): junta as duas, sem repetir
- 50        out[campo] = uniaoTermos(servidor[campo] as string[], recebido[campo] as string[]) as T[keyof T];
- 51      }
- 52      return out;
- 53    }
- 54  }
- 55  
- 56  /** O registro do servidor prevalece (atendimento registrado é imutável). */
- 57  export class ServerWinsStrategy<T> implements ConflictResolutionStrategy<T> {
- 58    readonly nome = 'SERVIDOR_VENCE' as const;
- 59    resolve(servidor: T): T {
- 60      return servidor; // ignora o que chegou: fica o que já está na central
- 61    }
- 62  }
+ 20  // O CONTRATO
+ 21  // Toda estratégia recebe as duas versões do registro (a que está no banco e a que acabou de chegar)
+ 22  // e devolve a versão final. O "nome" vai para o histórico de conflitos (tabela sync_conflito).
+ 23  export interface ConflictResolutionStrategy<T> {
+ 24    readonly nome: NomeEstrategia;
+ 25    resolve(servidor: T, recebido: T): T;
+ 26  }
+ 27  
+ 28  const recebidoMaisRecente = (s: ComRelogio, r: ComRelogio) =>
+ 29    Date.parse(r.atualizadoEmCliente) >= Date.parse(s.atualizadoEmCliente);
+ 30  
+ 31  // ESTRATÉGIA 1 — LAST WRITE WINS (usada em Pessoa)
+ 32  // Compara o horário em que cada aparelho fez a edição (atualizadoEmCliente).
+ 33  // Fica a versão editada por último; a outra é descartada.
+ 34  export class LastWriteWinsStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
+ 35    readonly nome = 'LWW' as const;
+ 36    resolve(servidor: T, recebido: T): T {
+ 37      return recebidoMaisRecente(servidor, recebido) ? recebido : servidor; // o horário mais novo vence
+ 38    }
+ 39  }
+ 40  
+ 41  // ESTRATÉGIA 2 — MESCLA (usada em Prontuário)
+ 42  // Campos simples (tipo sanguíneo, observações): vence o mais recente, igual à estratégia 1.
+ 43  // Listas (alergias, comorbidades): junta as duas versões. Se uma equipe anotou "Penicilina" e
+ 44  // outra anotou "Látex", ficam as duas: perder uma alergia seria perigoso para o paciente.
+ 45  export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
+ 46    readonly nome = 'MESCLA' as const;
+ 47    private readonly lww = new LastWriteWinsStrategy<T>();
+ 48  
+ 49    constructor(private readonly listas: readonly (keyof T)[]) {}
+ 50  
+ 51    resolve(servidor: T, recebido: T): T {
+ 52      const out = { ...this.lww.resolve(servidor, recebido) }; // 1) campos simples: o mais novo vence
+ 53      for (const campo of this.listas) { // 2) listas (alergias, comorbidades): junta as duas, sem repetir
+ 54        out[campo] = uniaoTermos(servidor[campo] as string[], recebido[campo] as string[]) as T[keyof T];
+ 55      }
+ 56      return out;
+ 57    }
+ 58  }
+ 59  
+ 60  // ESTRATÉGIA 3 — SERVIDOR VENCE (usada em Atendimento)
+ 61  // Um atendimento já registrado na central é um documento: não pode ser trocado depois.
+ 62  // Então o que chegou é ignorado e fica a versão que já estava no banco.
+ 63  export class ServerWinsStrategy<T> implements ConflictResolutionStrategy<T> {
+ 64    readonly nome = 'SERVIDOR_VENCE' as const;
+ 65    resolve(servidor: T): T {
+ 66      return servidor; // ignora o que chegou: fica o que já está na central
+ 67    }
+ 68  }
 ```
 
 **Quando existe conflito** — `services/clinical-service/src/sync/sync-support.ts` (linhas 24–24)
@@ -193,64 +207,70 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** Quando a internet volta, os registros guardados no aparelho precisam ir para a central sozinhos, sem o socorrista clicar em nada. E a tela também precisa mudar de cor na hora. Ficar perguntando “a rede voltou?” a cada segundo seria desperdício.
 
-**O contrato do Observer** — `apps/client/src/sync/network.ts` (linhas 9–12)
+**O contrato do Observer** — `apps/client/src/sync/network.ts` (linhas 9–14)
 
 ```ts
-  9  // Para entrar no "grupo", basta ter este método.
- 10  export interface NetworkObserver {
- 11    onNetworkChange(online: boolean): void;
- 12  }
+  9  // O OBSERVER
+ 10  // Quem quiser ser avisado da rede implementa este único método. O SyncEngine (engine.ts) e a
+ 11  // barra da tela fazem isso.
+ 12  export interface NetworkObserver {
+ 13    onNetworkChange(online: boolean): void;
+ 14  }
 ```
 
-**O Subject: NetworkMonitor guarda a lista de observers** — `apps/client/src/sync/network.ts` (linhas 24–41)
+**O Subject: NetworkMonitor guarda a lista de observers** — `apps/client/src/sync/network.ts` (linhas 26–46)
 
 ```ts
- 24  export class NetworkMonitor {
- 25    private observers = new Set<NetworkObserver>();
- 26    private simuladorOnline = lerSimulador();
- 27    private navegadorOnline = typeof navigator === 'undefined' ? true : navigator.onLine;
- 28  
- 29    constructor() {
- 30      // O navegador avisa quando a internet de verdade cai ou volta.
- 31      if (typeof window !== 'undefined') {
- 32        window.addEventListener('online', () => this.atualizar(() => (this.navegadorOnline = true)));
- 33        window.addEventListener('offline', () => this.atualizar(() => (this.navegadorOnline = false)));
- 34      }
- 35    }
- 36  
- 37    // Entrar no grupo (devolve a função para sair).
- 38    subscribe(o: NetworkObserver): () => void {
- 39      this.observers.add(o);
- 40      return () => this.unsubscribe(o);
- 41    }
+ 26  // O SUBJECT
+ 27  // Guarda a lista de observers e dois estados: a internet real do navegador e a chave
+ 28  // Online/Offline da tela. Só está "online" quando os dois estão ligados.
+ 29  export class NetworkMonitor {
+ 30    private observers = new Set<NetworkObserver>();
+ 31    private simuladorOnline = lerSimulador();
+ 32    private navegadorOnline = typeof navigator === 'undefined' ? true : navigator.onLine;
+ 33  
+ 34    constructor() {
+ 35      // O navegador avisa quando a internet de verdade cai ou volta.
+ 36      if (typeof window !== 'undefined') {
+ 37        window.addEventListener('online', () => this.atualizar(() => (this.navegadorOnline = true)));
+ 38        window.addEventListener('offline', () => this.atualizar(() => (this.navegadorOnline = false)));
+ 39      }
+ 40    }
+ 41  
+ 42    // INSCRIÇÃO: coloca o observer na lista. Devolve uma função que tira ele da lista depois.
+ 43    subscribe(o: NetworkObserver): () => void {
+ 44      this.observers.add(o);
+ 45      return () => this.unsubscribe(o);
+ 46    }
 ```
 
-**A chave Online/Offline muda o estado e chama notify()** — `apps/client/src/sync/network.ts` (linhas 59–81)
+**A chave Online/Offline muda o estado e chama notify()** — `apps/client/src/sync/network.ts` (linhas 64–87)
 
 ```ts
- 59    // A chave Online/Offline da tela (para simular a falta de internet na apresentação).
- 60    setSimulador(online: boolean) {
- 61      this.atualizar(() => {
- 62        this.simuladorOnline = online;
- 63        try {
- 64          localStorage.setItem(CHAVE, String(online));
- 65        } catch {
- 66          /* armazenamento indisponível: vale só nesta sessão */
- 67        }
- 68      });
- 69    }
- 70  
- 71    // Toda mudança passa por aqui: muda o estado e avisa o grupo.
- 72    private atualizar(muda: () => void) {
- 73      muda();
- 74      this.notify();
- 75    }
- 76  
- 77    // Mandar o aviso para todo mundo do grupo; cada um decide o que fazer.
- 78    notify() {
- 79      const online = this.isOnline();
- 80      for (const o of this.observers) o.onNetworkChange(online);
- 81    }
+ 64    // A chave Online/Offline da tela (para simular a falta de internet na apresentação).
+ 65    setSimulador(online: boolean) {
+ 66      this.atualizar(() => {
+ 67        this.simuladorOnline = online;
+ 68        try {
+ 69          localStorage.setItem(CHAVE, String(online));
+ 70        } catch {
+ 71          /* armazenamento indisponível: vale só nesta sessão */
+ 72        }
+ 73      });
+ 74    }
+ 75  
+ 76    // Toda mudança (internet real ou chave da tela) passa por aqui: muda o estado e chama notify().
+ 77    private atualizar(muda: () => void) {
+ 78      muda();
+ 79      this.notify();
+ 80    }
+ 81  
+ 82    // O AVISO: percorre a lista e chama onNetworkChange(online) em cada observer.
+ 83    // O monitor não sabe o que cada um faz com o aviso; o SyncEngine, por exemplo, envia a fila.
+ 84    notify() {
+ 85      const online = this.isOnline();
+ 86      for (const o of this.observers) o.onNetworkChange(online);
+ 87    }
 ```
 
 **O SyncEngine implementa NetworkObserver e se inscreve** — `apps/client/src/sync/engine.ts` (linhas 21–28)
@@ -317,43 +337,51 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
  39    syncEngine.solicitar();
 ```
 
-**O comando e a fábrica que escolhe o comando certo para cada operação** — `apps/client/src/sync/commands.ts` (linhas 13–46)
+**O comando e a fábrica que escolhe o comando certo para cada operação** — `apps/client/src/sync/commands.ts` (linhas 13–54)
 
 ```ts
- 13  // Todo comando só precisa saber se executar.
- 14  export interface OutboxCommand {
- 15    execute(): Promise<void>;
- 16  }
- 17  
- 18  class UpsertCommand<L extends { id: string; version?: number; syncStatus: string }> implements OutboxCommand {
- 19    constructor(
- 20      private readonly op: OperacaoOutbox,
- 21      private readonly tabela: Table<L, string>,
- 22      private readonly destino: { salvar(registro: unknown, opId: string): Promise<{ registro: unknown }> },
- 23    ) {}
- 24  
- 25    // Executar o pedido: 1) pega o registro no aparelho  2) envia à central  3) marca como sincronizado.
- 26    async execute() {
- 27      const registro = await this.tabela.get(this.op.entidadeId);
- 28      if (!registro) return;
- 29      const { syncStatus: _s, version, ...dados } = registro as L & { syncErro?: unknown };
- 30      delete (dados as { syncErro?: unknown }).syncErro;
- 31      const r = await this.destino.salvar({ ...dados, baseVersion: version ?? null }, this.op.opId);
- 32      await this.tabela.put({ ...(r.registro as L), syncStatus: 'SINCRONIZADO' });
- 33    }
- 34  }
- 35  
- 36  // Transforma um item da fila no comando certo.
- 37  export function comandoPara(op: OperacaoOutbox): OutboxCommand {
- 38    switch (op.tipo) {
- 39      case 'PESSOA':
- 40        return new UpsertCommand(op, db.pessoas, remoto.pessoas);
- 41      case 'PRONTUARIO':
- 42        return new UpsertCommand(op, db.prontuarios, remoto.prontuarios);
- 43      case 'ATENDIMENTO':
- 44        return new UpsertCommand(op, db.atendimentos, remoto.atendimentos);
- 45    }
- 46  }
+ 13  // O CONTRATO
+ 14  // Um comando é qualquer objeto que sabe se executar. Quem executa (o SyncEngine) não precisa
+ 15  // saber se é uma pessoa, um prontuário ou um atendimento.
+ 16  export interface OutboxCommand {
+ 17    execute(): Promise<void>;
+ 18  }
+ 19  
+ 20  // O COMANDO
+ 21  // Guarda o pedido da fila (op), a tabela do aparelho e o destino na central.
+ 22  // Ele envia o estado ATUAL do registro: se a pessoa foi editada 3 vezes offline, vai a última versão.
+ 23  class UpsertCommand<L extends { id: string; version?: number; syncStatus: string }> implements OutboxCommand {
+ 24    constructor(
+ 25      private readonly op: OperacaoOutbox,
+ 26      private readonly tabela: Table<L, string>,
+ 27      private readonly destino: { salvar(registro: unknown, opId: string): Promise<{ registro: unknown }> },
+ 28    ) {}
+ 29  
+ 30    // EXECUTAR: 1) pega o registro no aparelho  2) envia à central com a baseVersion (para detectar
+ 31    // conflito)  3) grava a resposta da central no aparelho, marcada como SINCRONIZADO.
+ 32    async execute() {
+ 33      const registro = await this.tabela.get(this.op.entidadeId);
+ 34      if (!registro) return;
+ 35      const { syncStatus: _s, version, ...dados } = registro as L & { syncErro?: unknown };
+ 36      delete (dados as { syncErro?: unknown }).syncErro;
+ 37      const r = await this.destino.salvar({ ...dados, baseVersion: version ?? null }, this.op.opId);
+ 38      await this.tabela.put({ ...(r.registro as L), syncStatus: 'SINCRONIZADO' });
+ 39    }
+ 40  }
+ 41  
+ 42  // A FÁBRICA
+ 43  // Lê o tipo do item da fila e monta o comando certo, já ligado à tabela e à rota da API certas.
+ 44  // O SyncEngine só faz: comandoPara(item).execute().
+ 45  export function comandoPara(op: OperacaoOutbox): OutboxCommand {
+ 46    switch (op.tipo) {
+ 47      case 'PESSOA':
+ 48        return new UpsertCommand(op, db.pessoas, remoto.pessoas);
+ 49      case 'PRONTUARIO':
+ 50        return new UpsertCommand(op, db.prontuarios, remoto.prontuarios);
+ 51      case 'ATENDIMENTO':
+ 52        return new UpsertCommand(op, db.atendimentos, remoto.atendimentos);
+ 53    }
+ 54  }
 ```
 
 **O SyncEngine esvazia a fila executando os comandos** — `apps/client/src/sync/engine.ts` (linhas 92–105)
@@ -400,72 +428,78 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** Antes de dar um remédio, várias regras precisam ser conferidas (via permitida, dose máxima, alergia), e isso tem que funcionar sem internet. Colocar tudo num if gigante dificultaria incluir regras novas.
 
-**O elo da corrente: avalia a sua regra e repassa para o próximo** — `packages/shared/src/clinical/safety.ts` (linhas 21–38)
+**O elo da corrente: avalia a sua regra e repassa para o próximo** — `packages/shared/src/clinical/safety.ts` (linhas 22–42)
 
 ```ts
- 21  export abstract class RegraSeguranca {
- 22    private proxima: RegraSeguranca | null = null;
- 23  
- 24    // Liga este fiscal ao próximo da fila.
- 25    encadear(proxima: RegraSeguranca): RegraSeguranca {
- 26      this.proxima = proxima;
- 27      return proxima;
- 28    }
- 29  
- 30    // Confere a minha parte e passo para o próximo fiscal.
- 31    avaliar(ctx: ContextoAdministracao, alertas: string[] = []): string[] {
- 32      const alerta = this.verificar(ctx);
- 33      if (alerta) alertas.push(alerta);
- 34      return this.proxima ? this.proxima.avaliar(ctx, alertas) : alertas;
- 35    }
- 36  
- 37    protected abstract verificar(ctx: ContextoAdministracao): string | null;
- 38  }
+ 22  // O ELO DA CORRENTE
+ 23  // Todo fiscal tem um "próximo". avaliar() confere a regra deste fiscal (verificar), guarda o alerta
+ 24  // se houver problema e passa o pedido adiante. O último fiscal devolve a lista de alertas.
+ 25  export abstract class RegraSeguranca {
+ 26    private proxima: RegraSeguranca | null = null;
+ 27  
+ 28    // Liga este fiscal ao próximo da fila.
+ 29    encadear(proxima: RegraSeguranca): RegraSeguranca {
+ 30      this.proxima = proxima;
+ 31      return proxima;
+ 32    }
+ 33  
+ 34    // Confere a minha parte e passo para o próximo fiscal.
+ 35    avaliar(ctx: ContextoAdministracao, alertas: string[] = []): string[] {
+ 36      const alerta = this.verificar(ctx);
+ 37      if (alerta) alertas.push(alerta);
+ 38      return this.proxima ? this.proxima.avaliar(ctx, alertas) : alertas;
+ 39    }
+ 40  
+ 41    protected abstract verificar(ctx: ContextoAdministracao): string | null;
+ 42  }
 ```
 
-**As três regras (os elos)** — `packages/shared/src/clinical/safety.ts` (linhas 40–68)
+**As três regras (os elos)** — `packages/shared/src/clinical/safety.ts` (linhas 44–72)
 
 ```ts
- 40  // Fiscal 1: essa via (IV, IM, VO...) é permitida para o remédio?
- 41  export class ViaRule extends RegraSeguranca {
- 42    protected verificar({ medicamento, via }: ContextoAdministracao) {
- 43      return medicamento.viasPermitidas.includes(via)
- 44        ? null
- 45        : `Via ${via} não permitida para ${medicamento.nome} (use ${medicamento.viasPermitidas.join(', ')}).`;
- 46    }
- 47  }
- 48  
- 49  // Fiscal 2: a dose passa da máxima?
- 50  export class DoseMaximaRule extends RegraSeguranca {
- 51    protected verificar({ medicamento, dose }: ContextoAdministracao) {
- 52      return dose <= medicamento.doseMaxima
- 53        ? null
- 54        : `Dose de ${dose} ${medicamento.unidade} acima da máxima de ${medicamento.nome} (${medicamento.doseMaxima} ${medicamento.unidade}).`;
- 55    }
- 56  }
- 57  
- 58  // Fiscal 3: o paciente é alérgico a esse remédio (ou a um componente dele)?
- 59  export class AlergiaRule extends RegraSeguranca {
- 60    protected verificar({ medicamento, alergias }: ContextoAdministracao) {
- 61      const termos = [medicamento.nome, ...medicamento.alergenos].map(normalizarTexto);
- 62      const alergia = alergias.find((a) => {
- 63        const n = normalizarTexto(a);
- 64        return n.length > 2 && termos.some((t) => t.includes(n) || n.includes(t));
- 65      });
- 66      return alergia ? `Paciente alérgico a ${alergia}: ${medicamento.nome} não pode ser administrado.` : null;
- 67    }
- 68  }
+ 44  // Fiscal 1: essa via (IV, IM, VO...) é permitida para o remédio?
+ 45  export class ViaRule extends RegraSeguranca {
+ 46    protected verificar({ medicamento, via }: ContextoAdministracao) {
+ 47      return medicamento.viasPermitidas.includes(via)
+ 48        ? null
+ 49        : `Via ${via} não permitida para ${medicamento.nome} (use ${medicamento.viasPermitidas.join(', ')}).`;
+ 50    }
+ 51  }
+ 52  
+ 53  // Fiscal 2: a dose passa da máxima?
+ 54  export class DoseMaximaRule extends RegraSeguranca {
+ 55    protected verificar({ medicamento, dose }: ContextoAdministracao) {
+ 56      return dose <= medicamento.doseMaxima
+ 57        ? null
+ 58        : `Dose de ${dose} ${medicamento.unidade} acima da máxima de ${medicamento.nome} (${medicamento.doseMaxima} ${medicamento.unidade}).`;
+ 59    }
+ 60  }
+ 61  
+ 62  // Fiscal 3: o paciente é alérgico a esse remédio (ou a um componente dele)?
+ 63  export class AlergiaRule extends RegraSeguranca {
+ 64    protected verificar({ medicamento, alergias }: ContextoAdministracao) {
+ 65      const termos = [medicamento.nome, ...medicamento.alergenos].map(normalizarTexto);
+ 66      const alergia = alergias.find((a) => {
+ 67        const n = normalizarTexto(a);
+ 68        return n.length > 2 && termos.some((t) => t.includes(n) || n.includes(t));
+ 69      });
+ 70      return alergia ? `Paciente alérgico a ${alergia}: ${medicamento.nome} não pode ser administrado.` : null;
+ 71    }
+ 72  }
 ```
 
-**A corrente montada: via → dose máxima → alergia** — `packages/shared/src/clinical/safety.ts` (linhas 70–75)
+**A corrente montada: via → dose máxima → alergia** — `packages/shared/src/clinical/safety.ts` (linhas 74–82)
 
 ```ts
- 70  // Monta a corrente: via → dose máxima → alergia.
- 71  export function avaliarAdministracao(ctx: ContextoAdministracao): string[] {
- 72    const cadeia = new ViaRule();
- 73    cadeia.encadear(new DoseMaximaRule()).encadear(new AlergiaRule());
- 74    return cadeia.avaliar(ctx);
- 75  }
+ 74  // MONTAR E USAR A CORRENTE
+ 75  // Liga os fiscais na ordem via → dose máxima → alergia e passa o pedido pelo primeiro.
+ 76  // Lista vazia = pode administrar. Esta mesma função é chamada no celular (AtendimentoForm.tsx)
+ 77  // e no servidor (atendimento.service.ts).
+ 78  export function avaliarAdministracao(ctx: ContextoAdministracao): string[] {
+ 79    const cadeia = new ViaRule();
+ 80    cadeia.encadear(new DoseMaximaRule()).encadear(new AlergiaRule());
+ 81    return cadeia.avaliar(ctx);
+ 82  }
 ```
 
 **Como funciona, passo a passo:**
@@ -493,47 +527,54 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** A ficha em PDF tem várias seções (cabeçalho, paciente, ocorrência, avaliação, medicamentos, responsável), cada uma com sua formatação. Fazer tudo numa função só ficaria enorme e difícil de mudar.
 
-**O builder guarda o conteúdo de cada seção** — `services/document-service/app/ficha/builder.py` (linhas 59–65)
+**O builder guarda o conteúdo de cada seção** — `services/document-service/app/ficha/builder.py` (linhas 60–69)
 
 ```py
- 59  @dataclass
- 60  class FichaAtendimentoBuilder:
- 61      # Cada método preenche um pedaço do _ctx e devolve self: por isso dá para fazer .a().b().c()
- 62      _ctx: dict = field(default_factory=dict)
- 63  
- 64      # Camada 1: número, data e a cor da triagem.
- 65      def cabecalho(self, a: dict) -> FichaAtendimentoBuilder:
+ 60  # O BUILDER
+ 61  # Começa vazio (_ctx) e cada método preenche uma seção da ficha a partir dos dados do atendimento,
+ 62  # já formatando para leitura (datas em pt-BR, CPF com pontos, cor e significado da triagem).
+ 63  @dataclass
+ 64  class FichaAtendimentoBuilder:
+ 65      # Cada método preenche um pedaço do _ctx e devolve self: por isso dá para fazer .a().b().c()
+ 66      _ctx: dict = field(default_factory=dict)
+ 67  
+ 68      # Camada 1: número, data e a cor da triagem.
+ 69      def cabecalho(self, a: dict) -> FichaAtendimentoBuilder:
 ```
 
-**build() gera o PDF; montar_ficha() define a ordem das seções** — `services/document-service/app/ficha/builder.py` (linhas 133–158)
+**build() gera o PDF; montar_ficha() define a ordem das seções** — `services/document-service/app/ficha/builder.py` (linhas 137–166)
 
 ```py
-133      # Camada 6: quem atendeu.
-134      def responsavel(self, nome: str) -> FichaAtendimentoBuilder:
-135          self._ctx["responsavel"] = nome
-136          return self
-137  
-138      # Última camada: HTML com os dados → PDF.
-139      def build(self, emitido_por: str) -> Ficha:
-140          env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html"]))
-141          self._ctx["emitido"] = f"{datetime.now(FUSO).strftime('%d/%m/%Y %H:%M')} por {emitido_por}"
-142          html = env.get_template("ficha.html").render(**self._ctx)
-143          pdf = HTML(string=html, base_url=str(TEMPLATES)).write_pdf()
-144          return Ficha(pdf=pdf, nome_arquivo=f"ficha-atendimento-{self._ctx['numero'].lower()}.pdf")
-145  
-146  
-147  def montar_ficha(detalhe: dict, emitido_por: str) -> Ficha:
-148      """Diretor: a ordem das seções da ficha."""
-149      return (
-150          FichaAtendimentoBuilder()
-151          .cabecalho(detalhe)
-152          .paciente(detalhe["pessoa"], detalhe["prontuario"])
-153          .ocorrencia(detalhe)
-154          .avaliacao(detalhe)
-155          .medicamentos(detalhe["medicamentos"], detalhe.get("medicamentosCatalogo") or [])
-156          .responsavel(detalhe["profissionalNome"])
-157          .build(emitido_por)
-158      )
+137      # Camada 6: quem atendeu.
+138      def responsavel(self, nome: str) -> FichaAtendimentoBuilder:
+139          self._ctx["responsavel"] = nome
+140          return self
+141  
+142      # A ÚLTIMA ETAPA: junta todas as seções no template ficha.html (Jinja2) e o WeasyPrint
+143      # converte o HTML em PDF. Devolve a Ficha pronta para download ou para anexar no e-mail.
+144      def build(self, emitido_por: str) -> Ficha:
+145          env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html"]))
+146          self._ctx["emitido"] = f"{datetime.now(FUSO).strftime('%d/%m/%Y %H:%M')} por {emitido_por}"
+147          html = env.get_template("ficha.html").render(**self._ctx)
+148          pdf = HTML(string=html, base_url=str(TEMPLATES)).write_pdf()
+149          return Ficha(pdf=pdf, nome_arquivo=f"ficha-atendimento-{self._ctx['numero'].lower()}.pdf")
+150  
+151  
+152  def montar_ficha(detalhe: dict, emitido_por: str) -> Ficha:
+153      """
+154      O DIRETOR: decide a ordem das seções e chama o builder passo a passo.
+155      É esta função que as rotas de PDF e de e-mail usam (routers.py).
+156      """
+157      return (
+158          FichaAtendimentoBuilder()
+159          .cabecalho(detalhe)
+160          .paciente(detalhe["pessoa"], detalhe["prontuario"])
+161          .ocorrencia(detalhe)
+162          .avaliacao(detalhe)
+163          .medicamentos(detalhe["medicamentos"], detalhe.get("medicamentosCatalogo") or [])
+164          .responsavel(detalhe["profissionalNome"])
+165          .build(emitido_por)
+166      )
 ```
 
 **Como funciona, passo a passo:**
@@ -559,53 +600,59 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** O e-mail com a ficha pode sair por um servidor SMTP de verdade (ou pela caixa de demonstração Mailpit) ou, em desenvolvimento, ser gravado como arquivo .eml. A rota de e-mail não deveria saber disso.
 
-**A interface que a rota conhece** — `services/document-service/app/email/adapters.py` (linhas 40–44)
+**A interface que a rota conhece** — `services/document-service/app/email/adapters.py` (linhas 42–47)
 
 ```py
- 40  # A "tomada" que o sistema conhece.
- 41  class EmailSender(Protocol):
- 42      def enviar(self, m: Mensagem) -> str:
- 43          """Entrega a mensagem e devolve o Message-ID."""
- 44  
+ 42  # A INTERFACE ("a tomada")
+ 43  # A rota de e-mail só conhece este método: enviar(mensagem) devolve o Message-ID.
+ 44  class EmailSender(Protocol):
+ 45      def enviar(self, m: Mensagem) -> str:
+ 46          """Entrega a mensagem e devolve o Message-ID."""
+ 47  
 ```
 
-**Os dois adaptadores e a escolha** — `services/document-service/app/email/adapters.py` (linhas 59–92)
+**Os dois adaptadores e a escolha** — `services/document-service/app/email/adapters.py` (linhas 62–100)
 
 ```py
- 59  # Adapter 1: entrega por SMTP. Na VM, o SMTP é o Mailpit (container "email"), visto em /email/.
- 60  class SmtpEmailAdapter:
- 61      def __init__(self, s: Settings):
- 62          self.s = s
- 63  
- 64      def enviar(self, m: Mensagem) -> str:
- 65          msg = montar(m, self.s.smtp_from)
- 66          with smtplib.SMTP(self.s.smtp_host, self.s.smtp_port, timeout=20) as smtp:
- 67              if self.s.smtp_starttls:
- 68                  smtp.starttls(context=ssl.create_default_context())
- 69              if self.s.smtp_user:
- 70                  smtp.login(self.s.smtp_user, self.s.smtp_password or "")
- 71              smtp.send_message(msg)
- 72          return msg["Message-ID"]
- 73  
- 74  
- 75  # Adapter 2: sem SMTP, grava o e-mail como arquivo .eml.
- 76  class ArquivoEmailAdapter:
- 77      """Sem SMTP configurado: grava o e-mail completo (com anexo) como .eml na caixa de saída."""
+ 62  # ADAPTER 1 — SMTP
+ 63  # Traduz enviar() para o protocolo SMTP: conecta no servidor, faz login/TLS se configurado e envia.
+ 64  # Na VM, o servidor SMTP é o Mailpit (container "email"); a mensagem aparece em /email/.
+ 65  class SmtpEmailAdapter:
+ 66      def __init__(self, s: Settings):
+ 67          self.s = s
+ 68  
+ 69      def enviar(self, m: Mensagem) -> str:
+ 70          msg = montar(m, self.s.smtp_from)
+ 71          with smtplib.SMTP(self.s.smtp_host, self.s.smtp_port, timeout=20) as smtp:
+ 72              if self.s.smtp_starttls:
+ 73                  smtp.starttls(context=ssl.create_default_context())
+ 74              if self.s.smtp_user:
+ 75                  smtp.login(self.s.smtp_user, self.s.smtp_password or "")
+ 76              smtp.send_message(msg)
+ 77          return msg["Message-ID"]
  78  
- 79      def __init__(self, pasta: Path, remetente: str):
- 80          self.pasta = pasta
- 81          self.remetente = remetente
- 82  
- 83      def enviar(self, m: Mensagem) -> str:
- 84          msg = montar(m, self.remetente)
- 85          self.pasta.mkdir(parents=True, exist_ok=True)
- 86          (self.pasta / f"{uuid.uuid4()}.eml").write_bytes(bytes(msg))
- 87          return msg["Message-ID"]
+ 79  
+ 80  # ADAPTER 2 — ARQUIVO
+ 81  # Traduz enviar() para "salvar um arquivo .eml" numa pasta. Usado quando não há SMTP configurado.
+ 82  class ArquivoEmailAdapter:
+ 83      """Sem SMTP configurado: grava o e-mail completo (com anexo) como .eml na caixa de saída."""
+ 84  
+ 85      def __init__(self, pasta: Path, remetente: str):
+ 86          self.pasta = pasta
+ 87          self.remetente = remetente
  88  
- 89  
- 90  # Tem SMTP_HOST? Usa SMTP. Não tem? Grava arquivo.
- 91  def criar_sender(s: Settings) -> EmailSender:
- 92      return SmtpEmailAdapter(s) if s.smtp_host else ArquivoEmailAdapter(s.mail_outbox_dir, s.smtp_from)
+ 89      def enviar(self, m: Mensagem) -> str:
+ 90          msg = montar(m, self.remetente)
+ 91          self.pasta.mkdir(parents=True, exist_ok=True)
+ 92          (self.pasta / f"{uuid.uuid4()}.eml").write_bytes(bytes(msg))
+ 93          return msg["Message-ID"]
+ 94  
+ 95  
+ 96  # A ESCOLHA DO ADAPTER
+ 97  # Lê a configuração: tem SMTP_HOST? Usa o SMTP. Não tem? Grava arquivo.
+ 98  # Trocar o Mailpit por um Gmail de verdade é só mudar as variáveis SMTP_*; nenhum código muda.
+ 99  def criar_sender(s: Settings) -> EmailSender:
+100      return SmtpEmailAdapter(s) if s.smtp_host else ArquivoEmailAdapter(s.mail_outbox_dir, s.smtp_from)
 ```
 
 **Como funciona, passo a passo:**

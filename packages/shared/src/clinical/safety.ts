@@ -10,6 +10,7 @@
 import type { Medicamento, ViaAdministracao } from '../domain';
 import { normalizarTexto } from '../text';
 
+// O PEDIDO que passa pela corrente: qual remédio, quanto, por qual via e as alergias do paciente.
 export interface ContextoAdministracao {
   medicamento: Medicamento;
   dose: number;
@@ -18,6 +19,9 @@ export interface ContextoAdministracao {
   alergias: string[];
 }
 
+// O ELO DA CORRENTE
+// Todo fiscal tem um "próximo". avaliar() confere a regra deste fiscal (verificar), guarda o alerta
+// se houver problema e passa o pedido adiante. O último fiscal devolve a lista de alertas.
 export abstract class RegraSeguranca {
   private proxima: RegraSeguranca | null = null;
 
@@ -67,7 +71,10 @@ export class AlergiaRule extends RegraSeguranca {
   }
 }
 
-// Monta a corrente: via → dose máxima → alergia.
+// MONTAR E USAR A CORRENTE
+// Liga os fiscais na ordem via → dose máxima → alergia e passa o pedido pelo primeiro.
+// Lista vazia = pode administrar. Esta mesma função é chamada no celular (AtendimentoForm.tsx)
+// e no servidor (atendimento.service.ts).
 export function avaliarAdministracao(ctx: ContextoAdministracao): string[] {
   const cadeia = new ViaRule();
   cadeia.encadear(new DoseMaximaRule()).encadear(new AlergiaRule());

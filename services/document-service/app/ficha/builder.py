@@ -50,12 +50,16 @@ def _num(v) -> str:
     return (f"{float(v):.1f}" if float(v) % 1 else f"{int(float(v))}").replace(".", ",")
 
 
+# O PRODUTO FINAL: os bytes do PDF e o nome do arquivo.
 @dataclass
 class Ficha:
     pdf: bytes
     nome_arquivo: str
 
 
+# O BUILDER
+# Começa vazio (_ctx) e cada método preenche uma seção da ficha a partir dos dados do atendimento,
+# já formatando para leitura (datas em pt-BR, CPF com pontos, cor e significado da triagem).
 @dataclass
 class FichaAtendimentoBuilder:
     # Cada método preenche um pedaço do _ctx e devolve self: por isso dá para fazer .a().b().c()
@@ -135,7 +139,8 @@ class FichaAtendimentoBuilder:
         self._ctx["responsavel"] = nome
         return self
 
-    # Última camada: HTML com os dados → PDF.
+    # A ÚLTIMA ETAPA: junta todas as seções no template ficha.html (Jinja2) e o WeasyPrint
+    # converte o HTML em PDF. Devolve a Ficha pronta para download ou para anexar no e-mail.
     def build(self, emitido_por: str) -> Ficha:
         env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html"]))
         self._ctx["emitido"] = f"{datetime.now(FUSO).strftime('%d/%m/%Y %H:%M')} por {emitido_por}"
@@ -145,7 +150,10 @@ class FichaAtendimentoBuilder:
 
 
 def montar_ficha(detalhe: dict, emitido_por: str) -> Ficha:
-    """Diretor: a ordem das seções da ficha."""
+    """
+    O DIRETOR: decide a ordem das seções e chama o builder passo a passo.
+    É esta função que as rotas de PDF e de e-mail usam (routers.py).
+    """
     return (
         FichaAtendimentoBuilder()
         .cabecalho(detalhe)

@@ -6,7 +6,9 @@
  * todos chamando onNetworkChange(online). Ninguém precisa ficar perguntando "voltou?".
  * Quem escuta: o SyncEngine (envia a fila sozinho quando a rede volta) e a tela (muda a faixa).
  */
-// Para entrar no "grupo", basta ter este método.
+// O OBSERVER
+// Quem quiser ser avisado da rede implementa este único método. O SyncEngine (engine.ts) e a
+// barra da tela fazem isso.
 export interface NetworkObserver {
   onNetworkChange(online: boolean): void;
 }
@@ -21,6 +23,9 @@ function lerSimulador(): boolean {
   }
 }
 
+// O SUBJECT
+// Guarda a lista de observers e dois estados: a internet real do navegador e a chave
+// Online/Offline da tela. Só está "online" quando os dois estão ligados.
 export class NetworkMonitor {
   private observers = new Set<NetworkObserver>();
   private simuladorOnline = lerSimulador();
@@ -34,7 +39,7 @@ export class NetworkMonitor {
     }
   }
 
-  // Entrar no grupo (devolve a função para sair).
+  // INSCRIÇÃO: coloca o observer na lista. Devolve uma função que tira ele da lista depois.
   subscribe(o: NetworkObserver): () => void {
     this.observers.add(o);
     return () => this.unsubscribe(o);
@@ -68,13 +73,14 @@ export class NetworkMonitor {
     });
   }
 
-  // Toda mudança passa por aqui: muda o estado e avisa o grupo.
+  // Toda mudança (internet real ou chave da tela) passa por aqui: muda o estado e chama notify().
   private atualizar(muda: () => void) {
     muda();
     this.notify();
   }
 
-  // Mandar o aviso para todo mundo do grupo; cada um decide o que fazer.
+  // O AVISO: percorre a lista e chama onNetworkChange(online) em cada observer.
+  // O monitor não sabe o que cada um faz com o aviso; o SyncEngine, por exemplo, envia a fila.
   notify() {
     const online = this.isOnline();
     for (const o of this.observers) o.onNetworkChange(online);

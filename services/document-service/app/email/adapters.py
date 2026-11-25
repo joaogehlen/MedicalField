@@ -21,6 +21,8 @@ from typing import Protocol
 from ..config import Settings
 
 
+# A MENSAGEM: o que o sistema quer enviar (destinatário, assunto, texto e o PDF anexo).
+# Não diz nada sobre COMO enviar; isso é trabalho do adapter.
 @dataclass(frozen=True)
 class Anexo:
     nome: str
@@ -37,7 +39,8 @@ class Mensagem:
     anexo: Anexo
 
 
-# A "tomada" que o sistema conhece.
+# A INTERFACE ("a tomada")
+# A rota de e-mail só conhece este método: enviar(mensagem) devolve o Message-ID.
 class EmailSender(Protocol):
     def enviar(self, m: Mensagem) -> str:
         """Entrega a mensagem e devolve o Message-ID."""
@@ -56,7 +59,9 @@ def montar(m: Mensagem, remetente: str) -> EmailMessage:
     return msg
 
 
-# Adapter 1: entrega por SMTP. Na VM, o SMTP é o Mailpit (container "email"), visto em /email/.
+# ADAPTER 1 — SMTP
+# Traduz enviar() para o protocolo SMTP: conecta no servidor, faz login/TLS se configurado e envia.
+# Na VM, o servidor SMTP é o Mailpit (container "email"); a mensagem aparece em /email/.
 class SmtpEmailAdapter:
     def __init__(self, s: Settings):
         self.s = s
@@ -72,7 +77,8 @@ class SmtpEmailAdapter:
         return msg["Message-ID"]
 
 
-# Adapter 2: sem SMTP, grava o e-mail como arquivo .eml.
+# ADAPTER 2 — ARQUIVO
+# Traduz enviar() para "salvar um arquivo .eml" numa pasta. Usado quando não há SMTP configurado.
 class ArquivoEmailAdapter:
     """Sem SMTP configurado: grava o e-mail completo (com anexo) como .eml na caixa de saída."""
 
@@ -87,6 +93,8 @@ class ArquivoEmailAdapter:
         return msg["Message-ID"]
 
 
-# Tem SMTP_HOST? Usa SMTP. Não tem? Grava arquivo.
+# A ESCOLHA DO ADAPTER
+# Lê a configuração: tem SMTP_HOST? Usa o SMTP. Não tem? Grava arquivo.
+# Trocar o Mailpit por um Gmail de verdade é só mudar as variáveis SMTP_*; nenhum código muda.
 def criar_sender(s: Settings) -> EmailSender:
     return SmtpEmailAdapter(s) if s.smtp_host else ArquivoEmailAdapter(s.mail_outbox_dir, s.smtp_from)
