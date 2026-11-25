@@ -1,6 +1,8 @@
 # 04 — APIs (Entregável E2, parte 1)
 
-Coleção pronta para Postman/Insomnia: [`postman/MedicalField.postman_collection.json`](../postman/MedicalField.postman_collection.json). A requisição de login guarda o token na variável `token` automaticamente.
+**Versão em PDF**, com exemplos de respostas reais: [`docs/MedicalField-Rotas-API.pdf`](MedicalField-Rotas-API.pdf).
+
+Coleções prontas: **Insomnia** [`insomnia/MedicalField.insomnia.json`](../insomnia/MedicalField.insomnia.json) (Import → escolha o ambiente → rode “Login (CRM)”; as outras requisições usam o token sozinhas; a pasta “0 · Roteiro da apresentação” segue a ordem da demonstração) e **Postman** [`postman/MedicalField.postman_collection.json`](../postman/MedicalField.postman_collection.json).
 
 ## 1. Convenções
 

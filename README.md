@@ -69,7 +69,7 @@ cd tests/e2e && npm install && npx playwright install chromium && node roteiro.m
 | 01 | [Extração da proposta](docs/01-proposta.md) | Requisitos e onde cada um foi implementado |
 | 02 | [Arquitetura](docs/02-arquitetura.md) | **E1** — diagramas, tecnologias, segurança, padrões, ADRs |
 | 03 | [Offline-first e sincronização](docs/03-sincronizacao-offline.md) | Simulador, Outbox, recebimento por cursor, conflitos, regras clínicas offline |
-| 04 | [APIs](docs/04-apis.md) | **E2** — rotas e contratos dos três serviços |
+| 04 | [APIs](docs/04-apis.md) · [PDF](docs/MedicalField-Rotas-API.pdf) | **E2** — rotas e contratos dos três serviços |
 | 05 | [Banco de dados](docs/05-banco-de-dados.md) | **E2** — PostgreSQL (três schemas) e IndexedDB |
 | 06 | [Roteiro de testes](docs/06-roteiro-testes.md) | **E3** — 17 passos, capturas e testes automatizados |
 | 07 | [Implantação na VM](docs/07-implantacao-vm.md) | Nginx, systemd, e-mail, operação |

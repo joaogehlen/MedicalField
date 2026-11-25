@@ -1,0 +1,777 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-11-25T12:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v10.0.0",
+  "resources": [
+    {
+      "_id": "wrk_medicalfield",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "MedicalField API",
+      "scope": "collection",
+      "description": "Rotas dos três serviços do MedicalField pelo gateway (/api). Escolha o ambiente e rode \"Login (CRM)\": as outras rotas usam o token dele sozinhas."
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_medicalfield",
+      "name": "Base Environment",
+      "data": {
+        "pessoa_id": "0f1d0000-0000-4000-8000-00000000d001",
+        "prontuario_id": "0f1d0000-0000-4000-8000-00000000d002",
+        "atendimento_id": "0f1d0000-0000-4000-8000-00000000d003",
+        "atendimento_invalido_id": "0f1d0000-0000-4000-8000-00000000d004",
+        "chave_pessoa": "0f1d0000-0000-4000-8000-00000000e001",
+        "profissional_id": "7a1f0000-0000-4000-8000-000000000002",
+        "ondansetrona_id": "5e3d0000-0000-4000-8000-000000000004",
+        "atendimento_demo_id": "0f9c0000-0000-4000-8000-000000000001",
+        "pessoa_demo_id": "2d4f0000-0000-4000-8000-000000000001",
+        "prontuario_demo_id": "1a6b0000-0000-4000-8000-000000000001"
+      },
+      "isPrivate": false,
+      "metaSortKey": 1
+    },
+    {
+      "_id": "env_vm",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "VM Univates",
+      "data": {
+        "base_url": "http://IP-DA-VM/api"
+      },
+      "isPrivate": false,
+      "metaSortKey": 1
+    },
+    {
+      "_id": "env_docker",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local (Docker)",
+      "data": {
+        "base_url": "http://localhost/api"
+      },
+      "isPrivate": false,
+      "metaSortKey": 2
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local (sem Docker)",
+      "data": {
+        "base_url": "http://localhost:8080/api"
+      },
+      "isPrivate": false,
+      "metaSortKey": 3
+    },
+    {
+      "_id": "fld_roteiro",
+      "_type": "request_group",
+      "parentId": "wrk_medicalfield",
+      "name": "0 · Roteiro da apresentação",
+      "description": "As requisições na ordem da demonstração.",
+      "environment": {},
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_r01",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "1. Sem token → 401",
+      "method": "GET",
+      "url": "{{ _.base_url }}/medicamento",
+      "headers": [],
+      "parameters": [],
+      "description": "Toda rota, exceto o login, exige token: resposta 401 NAO_AUTENTICADO.",
+      "authentication": {},
+      "body": {},
+      "metaSortKey": 2,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r02",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "2. Login (CRM)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "description": "Devolve accessToken (JWT RS256), expiresIn (43200 s = 12 h) e o profissional.",
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"tipoRegistro\": \"CRM\",\n  \"numeroRegistro\": \"12345\",\n  \"uf\": \"RS\",\n  \"senha\": \"medicalfield\"\n}"
+      },
+      "metaSortKey": 3,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r03",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "3. Medicamentos (com token)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/medicamento",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 4,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r04",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "4. Cadastrar pessoa",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pessoa",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{{ _.chave_pessoa }}"
+        }
+      ],
+      "parameters": [],
+      "description": "Idempotency-Key fixa (chave_pessoa no ambiente).",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.pessoa_id }}\",\n  \"nome\": \"Paciente Insomnia\",\n  \"cpf\": null,\n  \"dataNascimento\": \"1990-01-15\",\n  \"sexo\": \"F\",\n  \"telefone\": null,\n  \"email\": null,\n  \"contatoNome\": \"Familiar da Paciente\",\n  \"contatoEmail\": \"familiar@exemplo.com.br\",\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 5,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r05",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "5. Repetir com a mesma Idempotency-Key",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pessoa",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{{ _.chave_pessoa }}"
+        }
+      ],
+      "parameters": [],
+      "description": "Mesma chave do passo 4: a central devolve a mesma resposta e não grava de novo.",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.pessoa_id }}\",\n  \"nome\": \"Paciente Insomnia\",\n  \"cpf\": null,\n  \"dataNascimento\": \"1990-01-15\",\n  \"sexo\": \"F\",\n  \"telefone\": null,\n  \"email\": null,\n  \"contatoNome\": \"Familiar da Paciente\",\n  \"contatoEmail\": \"familiar@exemplo.com.br\",\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 6,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r06a",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "6a. Cadastrar prontuário",
+      "method": "POST",
+      "url": "{{ _.base_url }}/prontuario",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.prontuario_id }}\",\n  \"pessoaId\": \"{{ _.pessoa_id }}\",\n  \"tipoSanguineo\": \"A+\",\n  \"alergias\": [\n    \"Penicilina\"\n  ],\n  \"comorbidades\": [],\n  \"observacoes\": null,\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 7,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r06b",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "6b. Cadastrar atendimento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/atendimento",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.atendimento_id }}\",\n  \"pessoaId\": \"{{ _.pessoa_id }}\",\n  \"prontuarioId\": \"{{ _.prontuario_id }}\",\n  \"dataHora\": \"{% now 'iso-8601', '' %}\",\n  \"local\": \"Av. Avelino Talini, 171 — Lajeado\",\n  \"queixaPrincipal\": \"Falta de ar\",\n  \"observacoes\": null,\n  \"triagem\": {\n    \"protocolo\": \"MANCHESTER\",\n    \"classificacao\": \"AMARELO\"\n  },\n  \"glasgow\": {\n    \"ocular\": 4,\n    \"verbal\": 5,\n    \"motora\": 6,\n    \"total\": 15\n  },\n  \"sinaisVitais\": {\n    \"paSistolica\": 130,\n    \"paDiastolica\": 85,\n    \"fc\": 96,\n    \"fr\": 22,\n    \"spo2\": 93,\n    \"temperatura\": 36.8,\n    \"glicemia\": null\n  },\n  \"medicamentos\": [\n    {\n      \"id\": \"{% uuid 'v4' %}\",\n      \"medicamentoId\": \"{{ _.ondansetrona_id }}\",\n      \"dose\": 4,\n      \"via\": \"IV\",\n      \"horario\": \"{% now 'iso-8601', '' %}\"\n    }\n  ],\n  \"profissionalNome\": \"Dra. Ana Souza · CRM 12345/RS\",\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 8,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r07",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "7. Atendimento com dose 20 mg → 422",
+      "method": "POST",
+      "url": "{{ _.base_url }}/atendimento",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "description": "Ondansetrona tem dose máxima de 8 mg: a regra clínica (Chain of Responsibility) recusa com 422 REGRA_CLINICA.",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.atendimento_invalido_id }}\",\n  \"pessoaId\": \"{{ _.pessoa_id }}\",\n  \"prontuarioId\": \"{{ _.prontuario_id }}\",\n  \"dataHora\": \"{% now 'iso-8601', '' %}\",\n  \"local\": \"Av. Avelino Talini, 171 — Lajeado\",\n  \"queixaPrincipal\": \"Falta de ar\",\n  \"observacoes\": null,\n  \"triagem\": {\n    \"protocolo\": \"MANCHESTER\",\n    \"classificacao\": \"AMARELO\"\n  },\n  \"glasgow\": {\n    \"ocular\": 4,\n    \"verbal\": 5,\n    \"motora\": 6,\n    \"total\": 15\n  },\n  \"sinaisVitais\": {\n    \"paSistolica\": 130,\n    \"paDiastolica\": 85,\n    \"fc\": 96,\n    \"fr\": 22,\n    \"spo2\": 93,\n    \"temperatura\": 36.8,\n    \"glicemia\": null\n  },\n  \"medicamentos\": [\n    {\n      \"id\": \"{% uuid 'v4' %}\",\n      \"medicamentoId\": \"{{ _.ondansetrona_id }}\",\n      \"dose\": 20,\n      \"via\": \"IV\",\n      \"horario\": \"{% now 'iso-8601', '' %}\"\n    }\n  ],\n  \"profissionalNome\": \"Dra. Ana Souza · CRM 12345/RS\",\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 9,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r08",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "8. Ficha em PDF",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ficha/{{ _.atendimento_id }}/pdf",
+      "headers": [],
+      "parameters": [],
+      "description": "Use a aba Preview para ver o PDF.",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 10,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r09",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "9. Enviar ficha por e-mail",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ficha/{{ _.atendimento_id }}/email",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "description": "Depois, abra http://<IP-da-VM>/email/ no navegador para ver o e-mail com o PDF anexo.",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"familiar@exemplo.com.br\",\n  \"nome\": \"Familiar da Paciente\"\n}"
+      },
+      "metaSortKey": 11,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_r10",
+      "_type": "request",
+      "parentId": "fld_roteiro",
+      "name": "10. Login com senha errada → 401",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"tipoRegistro\": \"CRM\",\n  \"numeroRegistro\": \"12345\",\n  \"uf\": \"RS\",\n  \"senha\": \"senha-errada\"\n}"
+      },
+      "metaSortKey": 12,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "fld_identity",
+      "_type": "request_group",
+      "parentId": "wrk_medicalfield",
+      "name": "identity-service (Java)",
+      "description": "Login, profissionais e logs do aparelho.",
+      "environment": {},
+      "metaSortKey": 13
+    },
+    {
+      "_id": "req_login",
+      "_type": "request",
+      "parentId": "fld_identity",
+      "name": "Login (CRM)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "description": "Única rota pública. As outras requisições leem o accessToken desta resposta.",
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"tipoRegistro\": \"CRM\",\n  \"numeroRegistro\": \"12345\",\n  \"uf\": \"RS\",\n  \"senha\": \"medicalfield\"\n}"
+      },
+      "metaSortKey": 14,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_login_admin",
+      "_type": "request",
+      "parentId": "fld_identity",
+      "name": "Login (ADMIN · central)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"tipoRegistro\": \"SOCORRISTA\",\n  \"numeroRegistro\": \"0001\",\n  \"uf\": null,\n  \"senha\": \"medicalfield\"\n}"
+      },
+      "metaSortKey": 15,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_profissional",
+      "_type": "request",
+      "parentId": "fld_identity",
+      "name": "Profissionais",
+      "method": "GET",
+      "url": "{{ _.base_url }}/profissional",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 16,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_log",
+      "_type": "request",
+      "parentId": "fld_identity",
+      "name": "Enviar logs do aparelho",
+      "method": "POST",
+      "url": "{{ _.base_url }}/log",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"dispositivoId\": \"insomnia\",\n  \"logs\": [\n    {\n      \"id\": \"{% uuid 'v4' %}\",\n      \"dataHora\": \"{% now 'iso-8601', '' %}\",\n      \"profissionalId\": \"{{ _.profissional_id }}\",\n      \"acao\": \"TESTE_INSOMNIA\",\n      \"detalhes\": {\n        \"origem\": \"insomnia\"\n      }\n    }\n  ]\n}"
+      },
+      "metaSortKey": 17,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "fld_clinical",
+      "_type": "request_group",
+      "parentId": "wrk_medicalfield",
+      "name": "clinical-service (TypeScript)",
+      "description": "Pessoas, prontuários, atendimentos, medicamentos e sincronização.",
+      "environment": {},
+      "metaSortKey": 18
+    },
+    {
+      "_id": "req_medicamento",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Medicamentos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/medicamento",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 19,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_pessoa",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Cadastrar pessoa",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pessoa",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.pessoa_id }}\",\n  \"nome\": \"Paciente Insomnia\",\n  \"cpf\": null,\n  \"dataNascimento\": \"1990-01-15\",\n  \"sexo\": \"F\",\n  \"telefone\": null,\n  \"email\": null,\n  \"contatoNome\": \"Familiar da Paciente\",\n  \"contatoEmail\": \"familiar@exemplo.com.br\",\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 20,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_prontuarios",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Prontuários",
+      "method": "GET",
+      "url": "{{ _.base_url }}/prontuario?pagina=1&tamanho=50",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 21,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_prontuario_id",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Prontuário por id",
+      "method": "GET",
+      "url": "{{ _.base_url }}/prontuario/{{ _.prontuario_demo_id }}",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 22,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_prontuario_post",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Cadastrar prontuário",
+      "method": "POST",
+      "url": "{{ _.base_url }}/prontuario",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.prontuario_id }}\",\n  \"pessoaId\": \"{{ _.pessoa_id }}\",\n  \"tipoSanguineo\": \"A+\",\n  \"alergias\": [\n    \"Penicilina\"\n  ],\n  \"comorbidades\": [],\n  \"observacoes\": null,\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 23,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_atendimentos",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Atendimentos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/atendimento?pagina=1&tamanho=50",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 24,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_atendimentos_pessoa",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Atendimentos de uma pessoa",
+      "method": "GET",
+      "url": "{{ _.base_url }}/atendimento/{{ _.pessoa_demo_id }}",
+      "headers": [],
+      "parameters": [],
+      "description": "Na proposta, {id} é o id da pessoa.",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 25,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_atendimento_detalhe",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Atendimento (detalhe)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/atendimento/detalhe/{{ _.atendimento_demo_id }}",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 26,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_atendimento_post",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Cadastrar atendimento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/atendimento",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"{{ _.atendimento_id }}\",\n  \"pessoaId\": \"{{ _.pessoa_id }}\",\n  \"prontuarioId\": \"{{ _.prontuario_id }}\",\n  \"dataHora\": \"{% now 'iso-8601', '' %}\",\n  \"local\": \"Av. Avelino Talini, 171 — Lajeado\",\n  \"queixaPrincipal\": \"Falta de ar\",\n  \"observacoes\": null,\n  \"triagem\": {\n    \"protocolo\": \"MANCHESTER\",\n    \"classificacao\": \"AMARELO\"\n  },\n  \"glasgow\": {\n    \"ocular\": 4,\n    \"verbal\": 5,\n    \"motora\": 6,\n    \"total\": 15\n  },\n  \"sinaisVitais\": {\n    \"paSistolica\": 130,\n    \"paDiastolica\": 85,\n    \"fc\": 96,\n    \"fr\": 22,\n    \"spo2\": 93,\n    \"temperatura\": 36.8,\n    \"glicemia\": null\n  },\n  \"medicamentos\": [\n    {\n      \"id\": \"{% uuid 'v4' %}\",\n      \"medicamentoId\": \"{{ _.ondansetrona_id }}\",\n      \"dose\": 4,\n      \"via\": \"IV\",\n      \"horario\": \"{% now 'iso-8601', '' %}\"\n    }\n  ],\n  \"profissionalNome\": \"Dra. Ana Souza · CRM 12345/RS\",\n  \"baseVersion\": null,\n  \"atualizadoEmCliente\": \"{% now 'iso-8601', '' %}\",\n  \"registradoPor\": \"{{ _.profissional_id }}\",\n  \"dispositivoId\": \"insomnia\",\n  \"criadoOffline\": false\n}"
+      },
+      "metaSortKey": 27,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_pull",
+      "_type": "request",
+      "parentId": "fld_clinical",
+      "name": "Sincronização (pull)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/sync/pull?cursor=0",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 28,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "fld_document",
+      "_type": "request_group",
+      "parentId": "wrk_medicalfield",
+      "name": "document-service (Python)",
+      "description": "Ficha de atendimento em PDF e envio por e-mail.",
+      "environment": {},
+      "metaSortKey": 29
+    },
+    {
+      "_id": "req_pdf",
+      "_type": "request",
+      "parentId": "fld_document",
+      "name": "Ficha em PDF",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ficha/{{ _.atendimento_demo_id }}/pdf",
+      "headers": [],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {},
+      "metaSortKey": 30,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    },
+    {
+      "_id": "req_email",
+      "_type": "request",
+      "parentId": "fld_document",
+      "name": "Enviar ficha por e-mail",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ficha/{{ _.atendimento_demo_id }}/email",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "description": "",
+      "authentication": {
+        "type": "bearer",
+        "token": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 43000 %}",
+        "prefix": ""
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"maria.silva@exemplo.com.br\",\n  \"nome\": \"Maria da Silva\"\n}"
+      },
+      "metaSortKey": 31,
+      "settingStoreCookies": false,
+      "settingSendCookies": false
+    }
+  ]
+}
