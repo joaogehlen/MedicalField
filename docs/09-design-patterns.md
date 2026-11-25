@@ -22,60 +22,76 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** O cliente tem dois lugares de dados: o banco do próprio aparelho (IndexedDB, que funciona sem internet) e a API da central. Se cada tela falasse direto com o IndexedDB ou com a API, o código ficaria espalhado e trocar o armazenamento exigiria mexer em todas as telas.
 
-**A interface e a implementação local (Dexie/IndexedDB)** — `apps/client/src/data/repositories.ts` (linhas 14–33)
+**A interface e a implementação local (Dexie/IndexedDB)** — `apps/client/src/data/repositories.ts` (linhas 18–44)
 
 ```ts
- 14  // O CONTRATO
- 15  // Todo repositório sabe fazer duas coisas: buscar um registro pelo id e listar todos.
- 16  // A tela só conhece estes dois métodos; não sabe se por trás tem IndexedDB, API ou outra coisa.
- 17  export interface Repository<T> {
- 18    buscar(id: string): Promise<T | undefined>;
- 19    listar(): Promise<T[]>;
- 20  }
- 21  
- 22  // O REPOSITÓRIO LOCAL
- 23  // Recebe uma tabela do IndexedDB (o banco do navegador) e implementa o contrato em cima dela:
- 24  // buscar = tabela.get(id), listar = tabela.toArray(). Funciona sem internet, porque é tudo no aparelho.
- 25  class LocalRepository<T> implements Repository<T> {
- 26    constructor(protected readonly tabela: Table<T, string>) {}
- 27    async buscar(id: string) {
- 28      return this.tabela.get(id);
- 29    }
- 30    async listar() {
- 31      return this.tabela.toArray();
- 32    }
- 33  }
+ 18  // O CONTRATO
+ 19  // Todo repositório sabe fazer duas coisas: buscar um registro pelo id e listar todos.
+ 20  // A tela só conhece estes dois métodos; não sabe se por trás tem IndexedDB, API ou outra coisa.
+ 21  // <T> = "de qualquer tipo": serve para Pessoa, Prontuário, Atendimento...
+ 22  export interface Repository<T> {
+ 23    // buscar: recebe o id e devolve o registro (ou undefined, se não existir).
+ 24    buscar(id: string): Promise<T | undefined>;
+ 25    // listar: devolve todos os registros.
+ 26    listar(): Promise<T[]>;
+ 27  }
+ 28  
+ 29  // O REPOSITÓRIO LOCAL
+ 30  // Recebe uma tabela do IndexedDB (o banco do navegador) e implementa o contrato em cima dela:
+ 31  // buscar = tabela.get(id), listar = tabela.toArray(). Funciona sem internet, porque é tudo no aparelho.
+ 32  // "implements Repository<T>" = promete cumprir o contrato acima.
+ 33  class LocalRepository<T> implements Repository<T> {
+ 34    // Guarda a tabela que este repositório vai usar (ex.: db.pessoas).
+ 35    constructor(protected readonly tabela: Table<T, string>) {}
+ 36    // Busca um registro pelo id dentro da tabela do aparelho.
+ 37    async buscar(id: string) {
+ 38      return this.tabela.get(id);
+ 39    }
+ 40    // Devolve todos os registros da tabela do aparelho.
+ 41    async listar() {
+ 42      return this.tabela.toArray();
+ 43    }
+ 44  }
 ```
 
-**Os repositórios prontos: local.* (aparelho) e remoto.* (API)** — `apps/client/src/data/repositories.ts` (linhas 59–84)
+**Os repositórios prontos: local.* (aparelho) e remoto.* (API)** — `apps/client/src/data/repositories.ts` (linhas 75–109)
 
 ```ts
- 59  // O QUE AS TELAS USAM
- 60  // Um repositório pronto para cada tabela. A tela chama, por exemplo, local.pessoas.listar()
- 61  // e recebe a lista, sem nenhuma linha de código de banco de dados.
- 62  export const local = {
- 63    pessoas: new PessoasLocais(db.pessoas),
- 64    prontuarios: new ProntuariosLocais(db.prontuarios),
- 65    atendimentos: new AtendimentosLocais(db.atendimentos),
- 66    medicamentos: new LocalRepository(db.medicamentos),
- 67  };
- 68  
- 69  // O REPOSITÓRIO REMOTO (a central)
- 70  // Salvar = um POST na API. O opId vai como Idempotency-Key: se a internet cair no meio e o
- 71  // mesmo envio for repetido, a central reconhece a chave e não grava duas vezes.
- 72  class RemoteRepository<T> {
- 73    constructor(private readonly rota: string) {}
- 74    salvar(registro: unknown, opId: string) {
- 75      return api<UpsertResponse<T>>('POST', this.rota, registro, opId);
- 76    }
- 77  }
- 78  
- 79  // Quem usa o remoto é só o envio para a central (commands.ts). As telas nunca chamam a API direto.
- 80  export const remoto = {
- 81    pessoas: new RemoteRepository<PessoaLocal>('/pessoa'),
- 82    prontuarios: new RemoteRepository<ProntuarioLocal>('/prontuario'),
- 83    atendimentos: new RemoteRepository<AtendimentoLocal>('/atendimento'),
- 84  };
+ 75  // O QUE AS TELAS USAM
+ 76  // Um repositório pronto para cada tabela. A tela chama, por exemplo, local.pessoas.listar()
+ 77  // e recebe a lista, sem nenhuma linha de código de banco de dados.
+ 78  export const local = {
+ 79    // Pacientes (vítimas), em ordem alfabética.
+ 80    pessoas: new PessoasLocais(db.pessoas),
+ 81    // Prontuários (tipo sanguíneo, alergias, comorbidades).
+ 82    prontuarios: new ProntuariosLocais(db.prontuarios),
+ 83    // Atendimentos, do mais novo para o mais antigo.
+ 84    atendimentos: new AtendimentosLocais(db.atendimentos),
+ 85    // Catálogo de medicamentos: não precisa de nada especial, usa o repositório local puro.
+ 86    medicamentos: new LocalRepository(db.medicamentos),
+ 87  };
+ 88  
+ 89  // O REPOSITÓRIO REMOTO (a central)
+ 90  // Salvar = um POST na API. O opId vai como Idempotency-Key: se a internet cair no meio e o
+ 91  // mesmo envio for repetido, a central reconhece a chave e não grava duas vezes.
+ 92  class RemoteRepository<T> {
+ 93    // Guarda a rota da API deste repositório (ex.: '/pessoa').
+ 94    constructor(private readonly rota: string) {}
+ 95    // Envia o registro para a central: POST na rota, com o opId como Idempotency-Key.
+ 96    salvar(registro: unknown, opId: string) {
+ 97      return api<UpsertResponse<T>>('POST', this.rota, registro, opId);
+ 98    }
+ 99  }
+100  
+101  // Quem usa o remoto é só o envio para a central (commands.ts). As telas nunca chamam a API direto.
+102  export const remoto = {
+103    // POST /api/pessoa
+104    pessoas: new RemoteRepository<PessoaLocal>('/pessoa'),
+105    // POST /api/prontuario
+106    prontuarios: new RemoteRepository<ProntuarioLocal>('/prontuario'),
+107    // POST /api/atendimento
+108    atendimentos: new RemoteRepository<AtendimentoLocal>('/atendimento'),
+109  };
 ```
 
 **Como funciona, passo a passo:**
@@ -90,7 +106,7 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 - `apps/client/src/ui/pages/PessoaForm.tsx:14` — a tela de vítima busca a pessoa com local.pessoas.buscar(id)
 - `apps/client/src/ui/pages/Paciente.tsx:12` — a ficha do paciente junta pessoa, prontuário e atendimentos pelos repositórios locais
-- `apps/client/src/sync/commands.ts:48` — o envio para a central usa remoto.pessoas
+- `apps/client/src/sync/commands.ts:64` — o envio para a central usa remoto.pessoas
 
 **Como mostrar ao vivo:** Com a chave em Offline, abra Pacientes: a lista aparece mesmo sem internet, porque vem de local.pessoas.listar(). Para mostrar o banco por baixo: F12 → Application → IndexedDB → medicalfield-v2.
 
@@ -104,58 +120,73 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** Dois socorristas, cada um sem internet, editam o mesmo registro. Quando os dois sincronizam, a central recebe duas versões. Quem vence? A resposta depende do tipo de dado: para uma pessoa, vale a edição mais recente; para alergias, perder uma é perigoso; um atendimento registrado não deve mudar.
 
-**A interface e as três estratégias** — `services/clinical-service/src/sync/strategies.ts` (linhas 20–68)
+**A interface e as três estratégias** — `services/clinical-service/src/sync/strategies.ts` (linhas 23–86)
 
 ```ts
- 20  // O CONTRATO
- 21  // Toda estratégia recebe as duas versões do registro (a que está no banco e a que acabou de chegar)
- 22  // e devolve a versão final. O "nome" vai para o histórico de conflitos (tabela sync_conflito).
- 23  export interface ConflictResolutionStrategy<T> {
- 24    readonly nome: NomeEstrategia;
- 25    resolve(servidor: T, recebido: T): T;
- 26  }
- 27  
- 28  const recebidoMaisRecente = (s: ComRelogio, r: ComRelogio) =>
- 29    Date.parse(r.atualizadoEmCliente) >= Date.parse(s.atualizadoEmCliente);
- 30  
- 31  // ESTRATÉGIA 1 — LAST WRITE WINS (usada em Pessoa)
- 32  // Compara o horário em que cada aparelho fez a edição (atualizadoEmCliente).
- 33  // Fica a versão editada por último; a outra é descartada.
- 34  export class LastWriteWinsStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
- 35    readonly nome = 'LWW' as const;
- 36    resolve(servidor: T, recebido: T): T {
- 37      return recebidoMaisRecente(servidor, recebido) ? recebido : servidor; // o horário mais novo vence
- 38    }
- 39  }
- 40  
- 41  // ESTRATÉGIA 2 — MESCLA (usada em Prontuário)
- 42  // Campos simples (tipo sanguíneo, observações): vence o mais recente, igual à estratégia 1.
- 43  // Listas (alergias, comorbidades): junta as duas versões. Se uma equipe anotou "Penicilina" e
- 44  // outra anotou "Látex", ficam as duas: perder uma alergia seria perigoso para o paciente.
- 45  export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
- 46    readonly nome = 'MESCLA' as const;
- 47    private readonly lww = new LastWriteWinsStrategy<T>();
+ 23  // O CONTRATO
+ 24  // Toda estratégia recebe as duas versões do registro (a que está no banco e a que acabou de chegar)
+ 25  // e devolve a versão final. O "nome" vai para o histórico de conflitos (tabela sync_conflito).
+ 26  export interface ConflictResolutionStrategy<T> {
+ 27    // O nome da estratégia (LWW, MESCLA ou SERVIDOR_VENCE).
+ 28    readonly nome: NomeEstrategia;
+ 29    // servidor = o que está no banco; recebido = o que o aparelho mandou; devolve quem fica.
+ 30    resolve(servidor: T, recebido: T): T;
+ 31  }
+ 32  
+ 33  // Função de apoio: true se a versão recebida foi editada depois (ou no mesmo horário) da do servidor.
+ 34  const recebidoMaisRecente = (s: ComRelogio, r: ComRelogio) =>
+ 35    Date.parse(r.atualizadoEmCliente) >= Date.parse(s.atualizadoEmCliente);
+ 36  
+ 37  // ESTRATÉGIA 1 — LAST WRITE WINS (usada em Pessoa)
+ 38  // Compara o horário em que cada aparelho fez a edição (atualizadoEmCliente).
+ 39  // Fica a versão editada por último; a outra é descartada.
+ 40  export class LastWriteWinsStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
+ 41    // Nome gravado no histórico de conflitos.
+ 42    readonly nome = 'LWW' as const;
+ 43    resolve(servidor: T, recebido: T): T {
+ 44      // A recebida é mais nova? Fica ela. Senão, fica a do servidor.
+ 45      return recebidoMaisRecente(servidor, recebido) ? recebido : servidor;
+ 46    }
+ 47  }
  48  
- 49    constructor(private readonly listas: readonly (keyof T)[]) {}
- 50  
- 51    resolve(servidor: T, recebido: T): T {
- 52      const out = { ...this.lww.resolve(servidor, recebido) }; // 1) campos simples: o mais novo vence
- 53      for (const campo of this.listas) { // 2) listas (alergias, comorbidades): junta as duas, sem repetir
- 54        out[campo] = uniaoTermos(servidor[campo] as string[], recebido[campo] as string[]) as T[keyof T];
- 55      }
- 56      return out;
- 57    }
- 58  }
- 59  
- 60  // ESTRATÉGIA 3 — SERVIDOR VENCE (usada em Atendimento)
- 61  // Um atendimento já registrado na central é um documento: não pode ser trocado depois.
- 62  // Então o que chegou é ignorado e fica a versão que já estava no banco.
- 63  export class ServerWinsStrategy<T> implements ConflictResolutionStrategy<T> {
- 64    readonly nome = 'SERVIDOR_VENCE' as const;
- 65    resolve(servidor: T): T {
- 66      return servidor; // ignora o que chegou: fica o que já está na central
- 67    }
- 68  }
+ 49  // ESTRATÉGIA 2 — MESCLA (usada em Prontuário)
+ 50  // Campos simples (tipo sanguíneo, observações): vence o mais recente, igual à estratégia 1.
+ 51  // Listas (alergias, comorbidades): junta as duas versões. Se uma equipe anotou "Penicilina" e
+ 52  // outra anotou "Látex", ficam as duas: perder uma alergia seria perigoso para o paciente.
+ 53  export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
+ 54    // Nome gravado no histórico de conflitos.
+ 55    readonly nome = 'MESCLA' as const;
+ 56    // Usa a estratégia 1 por dentro, para decidir os campos simples.
+ 57    private readonly lww = new LastWriteWinsStrategy<T>();
+ 58  
+ 59    // Recebe quais campos são listas. No prontuário: ['alergias', 'comorbidades'].
+ 60    constructor(private readonly listas: readonly (keyof T)[]) {}
+ 61  
+ 62    resolve(servidor: T, recebido: T): T {
+ 63      // Passo 1: começa pela versão mais recente (decide os campos simples).
+ 64      const out = { ...this.lww.resolve(servidor, recebido) };
+ 65      // Passo 2: para cada campo que é lista...
+ 66      for (const campo of this.listas) {
+ 67        // ...troca pela união das duas versões (servidor + recebido), sem repetir.
+ 68        out[campo] = uniaoTermos(servidor[campo] as string[], recebido[campo] as string[]) as T[keyof T];
+ 69      }
+ 70      // Devolve o registro mesclado.
+ 71      return out;
+ 72    }
+ 73  }
+ 74  
+ 75  // ESTRATÉGIA 3 — SERVIDOR VENCE (usada em Atendimento)
+ 76  // Um atendimento já registrado na central é um documento: não pode ser trocado depois.
+ 77  // Então o que chegou é ignorado e fica a versão que já estava no banco.
+ 78  export class ServerWinsStrategy<T> implements ConflictResolutionStrategy<T> {
+ 79    // Nome gravado no histórico de conflitos.
+ 80    readonly nome = 'SERVIDOR_VENCE' as const;
+ 81    // Só precisa da versão do servidor: o que chegou nem é olhado.
+ 82    resolve(servidor: T): T {
+ 83      // Devolve o que já está na central.
+ 84      return servidor;
+ 85    }
+ 86  }
 ```
 
 **Quando existe conflito** — `services/clinical-service/src/sync/sync-support.ts` (linhas 24–24)
@@ -207,70 +238,82 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
 
 **Problema que resolve no MedicalField:** Quando a internet volta, os registros guardados no aparelho precisam ir para a central sozinhos, sem o socorrista clicar em nada. E a tela também precisa mudar de cor na hora. Ficar perguntando “a rede voltou?” a cada segundo seria desperdício.
 
-**O contrato do Observer** — `apps/client/src/sync/network.ts` (linhas 9–14)
+**O contrato do Observer** — `apps/client/src/sync/network.ts` (linhas 9–15)
 
 ```ts
   9  // O OBSERVER
  10  // Quem quiser ser avisado da rede implementa este único método. O SyncEngine (engine.ts) e a
  11  // barra da tela fazem isso.
  12  export interface NetworkObserver {
- 13    onNetworkChange(online: boolean): void;
- 14  }
+ 13    // Chamado a cada mudança: online = true (tem internet) ou false (sem internet).
+ 14    onNetworkChange(online: boolean): void;
+ 15  }
 ```
 
-**O Subject: NetworkMonitor guarda a lista de observers** — `apps/client/src/sync/network.ts` (linhas 26–46)
+**O Subject: NetworkMonitor guarda a lista de observers** — `apps/client/src/sync/network.ts` (linhas 29–54)
 
 ```ts
- 26  // O SUBJECT
- 27  // Guarda a lista de observers e dois estados: a internet real do navegador e a chave
- 28  // Online/Offline da tela. Só está "online" quando os dois estão ligados.
- 29  export class NetworkMonitor {
- 30    private observers = new Set<NetworkObserver>();
- 31    private simuladorOnline = lerSimulador();
- 32    private navegadorOnline = typeof navigator === 'undefined' ? true : navigator.onLine;
- 33  
- 34    constructor() {
- 35      // O navegador avisa quando a internet de verdade cai ou volta.
- 36      if (typeof window !== 'undefined') {
- 37        window.addEventListener('online', () => this.atualizar(() => (this.navegadorOnline = true)));
- 38        window.addEventListener('offline', () => this.atualizar(() => (this.navegadorOnline = false)));
- 39      }
- 40    }
- 41  
- 42    // INSCRIÇÃO: coloca o observer na lista. Devolve uma função que tira ele da lista depois.
- 43    subscribe(o: NetworkObserver): () => void {
- 44      this.observers.add(o);
- 45      return () => this.unsubscribe(o);
- 46    }
+ 29  // O SUBJECT
+ 30  // Guarda a lista de observers e dois estados: a internet real do navegador e a chave
+ 31  // Online/Offline da tela. Só está "online" quando os dois estão ligados.
+ 32  export class NetworkMonitor {
+ 33    // A lista de quem quer ser avisado (Set = lista sem repetidos).
+ 34    private observers = new Set<NetworkObserver>();
+ 35    // Estado 1: a chave Online/Offline da tela.
+ 36    private simuladorOnline = lerSimulador();
+ 37    // Estado 2: a internet de verdade, segundo o navegador.
+ 38    private navegadorOnline = typeof navigator === 'undefined' ? true : navigator.onLine;
+ 39  
+ 40    constructor() {
+ 41      // O navegador avisa quando a internet de verdade cai ou volta.
+ 42      if (typeof window !== 'undefined') {
+ 43        // Internet voltou: atualiza o estado 2 e avisa todo mundo.
+ 44        window.addEventListener('online', () => this.atualizar(() => (this.navegadorOnline = true)));
+ 45        // Internet caiu: atualiza o estado 2 e avisa todo mundo.
+ 46        window.addEventListener('offline', () => this.atualizar(() => (this.navegadorOnline = false)));
+ 47      }
+ 48    }
+ 49  
+ 50    // INSCRIÇÃO: coloca o observer na lista. Devolve uma função que tira ele da lista depois.
+ 51    subscribe(o: NetworkObserver): () => void {
+ 52      this.observers.add(o);
+ 53      return () => this.unsubscribe(o);
+ 54    }
 ```
 
-**A chave Online/Offline muda o estado e chama notify()** — `apps/client/src/sync/network.ts` (linhas 64–87)
+**A chave Online/Offline muda o estado e chama notify()** — `apps/client/src/sync/network.ts` (linhas 76–105)
 
 ```ts
- 64    // A chave Online/Offline da tela (para simular a falta de internet na apresentação).
- 65    setSimulador(online: boolean) {
- 66      this.atualizar(() => {
- 67        this.simuladorOnline = online;
- 68        try {
- 69          localStorage.setItem(CHAVE, String(online));
- 70        } catch {
- 71          /* armazenamento indisponível: vale só nesta sessão */
- 72        }
- 73      });
- 74    }
- 75  
- 76    // Toda mudança (internet real ou chave da tela) passa por aqui: muda o estado e chama notify().
- 77    private atualizar(muda: () => void) {
- 78      muda();
- 79      this.notify();
- 80    }
- 81  
- 82    // O AVISO: percorre a lista e chama onNetworkChange(online) em cada observer.
- 83    // O monitor não sabe o que cada um faz com o aviso; o SyncEngine, por exemplo, envia a fila.
- 84    notify() {
- 85      const online = this.isOnline();
- 86      for (const o of this.observers) o.onNetworkChange(online);
- 87    }
+ 76    // A chave Online/Offline da tela (para simular a falta de internet na apresentação).
+ 77    setSimulador(online: boolean) {
+ 78      this.atualizar(() => {
+ 79        // Muda o estado 1.
+ 80        this.simuladorOnline = online;
+ 81        try {
+ 82          // Lembra a posição da chave, para continuar igual se a página for recarregada.
+ 83          localStorage.setItem(CHAVE, String(online));
+ 84        } catch {
+ 85          /* armazenamento indisponível: vale só nesta sessão */
+ 86        }
+ 87      });
+ 88    }
+ 89  
+ 90    // Toda mudança (internet real ou chave da tela) passa por aqui: muda o estado e chama notify().
+ 91    private atualizar(muda: () => void) {
+ 92      // Aplica a mudança recebida.
+ 93      muda();
+ 94      // Avisa todos os observers.
+ 95      this.notify();
+ 96    }
+ 97  
+ 98    // O AVISO: percorre a lista e chama onNetworkChange(online) em cada observer.
+ 99    // O monitor não sabe o que cada um faz com o aviso; o SyncEngine, por exemplo, envia a fila.
+100    notify() {
+101      // Calcula o estado atual uma vez...
+102      const online = this.isOnline();
+103      // ...e entrega para cada um da lista.
+104      for (const o of this.observers) o.onNetworkChange(online);
+105    }
 ```
 
 **O SyncEngine implementa NetworkObserver e se inscreve** — `apps/client/src/sync/engine.ts` (linhas 21–28)
@@ -337,51 +380,66 @@ Guia para mostrar e explicar cada padrão na apresentação. Os trechos abaixo s
  39    syncEngine.solicitar();
 ```
 
-**O comando e a fábrica que escolhe o comando certo para cada operação** — `apps/client/src/sync/commands.ts` (linhas 13–54)
+**O comando e a fábrica que escolhe o comando certo para cada operação** — `apps/client/src/sync/commands.ts` (linhas 16–72)
 
 ```ts
- 13  // O CONTRATO
- 14  // Um comando é qualquer objeto que sabe se executar. Quem executa (o SyncEngine) não precisa
- 15  // saber se é uma pessoa, um prontuário ou um atendimento.
- 16  export interface OutboxCommand {
- 17    execute(): Promise<void>;
- 18  }
- 19  
- 20  // O COMANDO
- 21  // Guarda o pedido da fila (op), a tabela do aparelho e o destino na central.
- 22  // Ele envia o estado ATUAL do registro: se a pessoa foi editada 3 vezes offline, vai a última versão.
- 23  class UpsertCommand<L extends { id: string; version?: number; syncStatus: string }> implements OutboxCommand {
- 24    constructor(
- 25      private readonly op: OperacaoOutbox,
- 26      private readonly tabela: Table<L, string>,
- 27      private readonly destino: { salvar(registro: unknown, opId: string): Promise<{ registro: unknown }> },
- 28    ) {}
- 29  
- 30    // EXECUTAR: 1) pega o registro no aparelho  2) envia à central com a baseVersion (para detectar
- 31    // conflito)  3) grava a resposta da central no aparelho, marcada como SINCRONIZADO.
- 32    async execute() {
- 33      const registro = await this.tabela.get(this.op.entidadeId);
- 34      if (!registro) return;
- 35      const { syncStatus: _s, version, ...dados } = registro as L & { syncErro?: unknown };
- 36      delete (dados as { syncErro?: unknown }).syncErro;
- 37      const r = await this.destino.salvar({ ...dados, baseVersion: version ?? null }, this.op.opId);
- 38      await this.tabela.put({ ...(r.registro as L), syncStatus: 'SINCRONIZADO' });
- 39    }
- 40  }
- 41  
- 42  // A FÁBRICA
- 43  // Lê o tipo do item da fila e monta o comando certo, já ligado à tabela e à rota da API certas.
- 44  // O SyncEngine só faz: comandoPara(item).execute().
- 45  export function comandoPara(op: OperacaoOutbox): OutboxCommand {
- 46    switch (op.tipo) {
- 47      case 'PESSOA':
- 48        return new UpsertCommand(op, db.pessoas, remoto.pessoas);
- 49      case 'PRONTUARIO':
- 50        return new UpsertCommand(op, db.prontuarios, remoto.prontuarios);
- 51      case 'ATENDIMENTO':
- 52        return new UpsertCommand(op, db.atendimentos, remoto.atendimentos);
+ 16  // O CONTRATO
+ 17  // Um comando é qualquer objeto que sabe se executar. Quem executa (o SyncEngine) não precisa
+ 18  // saber se é uma pessoa, um prontuário ou um atendimento.
+ 19  export interface OutboxCommand {
+ 20    // Executa o pedido (enviar para a central). É assíncrono porque depende da rede.
+ 21    execute(): Promise<void>;
+ 22  }
+ 23  
+ 24  // O COMANDO
+ 25  // Guarda o pedido da fila (op), a tabela do aparelho e o destino na central.
+ 26  // Ele envia o estado ATUAL do registro: se a pessoa foi editada 3 vezes offline, vai a última versão.
+ 27  // "Upsert" = cria se não existe, atualiza se já existe.
+ 28  class UpsertCommand<L extends { id: string; version?: number; syncStatus: string }> implements OutboxCommand {
+ 29    constructor(
+ 30      // O item da fila: diz qual registro enviar (entidadeId) e a chave do envio (opId).
+ 31      private readonly op: OperacaoOutbox,
+ 32      // A tabela do aparelho onde o registro está guardado (ex.: db.pessoas).
+ 33      private readonly tabela: Table<L, string>,
+ 34      // Para onde enviar: o repositório remoto (ex.: remoto.pessoas → POST /pessoa).
+ 35      private readonly destino: { salvar(registro: unknown, opId: string): Promise<{ registro: unknown }> },
+ 36    ) {}
+ 37  
+ 38    // EXECUTAR: 1) pega o registro no aparelho  2) envia à central com a baseVersion (para detectar
+ 39    // conflito)  3) grava a resposta da central no aparelho, marcada como SINCRONIZADO.
+ 40    async execute() {
+ 41      // 1) Lê o registro atual no aparelho.
+ 42      const registro = await this.tabela.get(this.op.entidadeId);
+ 43      // Se o registro não existe mais, não há o que enviar.
+ 44      if (!registro) return;
+ 45      // Separa os campos que são só do aparelho (syncStatus, version) dos dados que vão para a central.
+ 46      const { syncStatus: _s, version, ...dados } = registro as L & { syncErro?: unknown };
+ 47      // Tira também a mensagem de erro de envio, que só existe no aparelho.
+ 48      delete (dados as { syncErro?: unknown }).syncErro;
+ 49      // 2) Envia. baseVersion = a versão que o aparelho conhecia (a central usa para ver se houve conflito).
+ 50      const r = await this.destino.salvar({ ...dados, baseVersion: version ?? null }, this.op.opId);
+ 51      // 3) Guarda no aparelho o que a central devolveu (versão nova, ou mesclada), como SINCRONIZADO.
+ 52      await this.tabela.put({ ...(r.registro as L), syncStatus: 'SINCRONIZADO' });
  53    }
  54  }
+ 55  
+ 56  // A FÁBRICA
+ 57  // Lê o tipo do item da fila e monta o comando certo, já ligado à tabela e à rota da API certas.
+ 58  // O SyncEngine só faz: comandoPara(item).execute().
+ 59  export function comandoPara(op: OperacaoOutbox): OutboxCommand {
+ 60    // Olha o tipo do pedido...
+ 61    switch (op.tipo) {
+ 62      // Pessoa: lê de db.pessoas e envia para POST /pessoa.
+ 63      case 'PESSOA':
+ 64        return new UpsertCommand(op, db.pessoas, remoto.pessoas);
+ 65      // Prontuário: lê de db.prontuarios e envia para POST /prontuario.
+ 66      case 'PRONTUARIO':
+ 67        return new UpsertCommand(op, db.prontuarios, remoto.prontuarios);
+ 68      // Atendimento: lê de db.atendimentos e envia para POST /atendimento.
+ 69      case 'ATENDIMENTO':
+ 70        return new UpsertCommand(op, db.atendimentos, remoto.atendimentos);
+ 71    }
+ 72  }
 ```
 
 **O SyncEngine esvazia a fila executando os comandos** — `apps/client/src/sync/engine.ts` (linhas 92–105)
