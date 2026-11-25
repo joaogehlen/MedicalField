@@ -20,7 +20,7 @@ const resumo = (r: Record<string, any>): ProntuarioResumo => ({
 @Injectable()
 export class ProntuarioService {
   /** Alergias e comorbidades de duas equipes são unidas; o resto vence a edição mais recente. */
-  private readonly estrategia = new MergeStrategy<Prontuario>(['alergias', 'comorbidades']);
+  private readonly estrategia = new MergeStrategy<Prontuario>(['alergias', 'comorbidades']); // Strategy: une as listas
 
   constructor(private readonly db: DatabaseService, private readonly sync: SyncSupport) {}
 
@@ -69,7 +69,8 @@ export class ProntuarioService {
     }
 
     const servidor = prontuarioDeLinha(linha);
-    const conflito = houveConflito(servidor.version!, recebido.baseVersion);
+    const conflito = houveConflito(servidor.version!, recebido.baseVersion); // alguém mudou no meio do caminho?
+    // Strategy: no conflito, pergunta à estratégia quem vence, sem saber qual algoritmo ela usa.
     const final = conflito ? this.estrategia.resolve(servidor, recebido) : recebido;
     const r = await tx.one(
       `UPDATE prontuario SET tipo_sanguineo=$2, alergias=$3, comorbidades=$4, observacoes=$5, atualizado_em_cliente=$6,

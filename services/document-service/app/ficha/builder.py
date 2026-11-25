@@ -1,6 +1,11 @@
 """
-Padrão Builder: monta a Ficha de Atendimento seção por seção, separando a construção
-do documento (dados de cada bloco) da sua representação (HTML → PDF).
+PADRÃO BUILDER — "montar um hambúrguer em camadas"
+
+A ficha do atendimento (o PDF do prontuário) é montada seção por seção:
+    cabecalho → paciente → ocorrencia → avaliacao → medicamentos → responsavel → build()
+Cada método preenche um pedaço e devolve o próprio builder (por isso dá para encadear).
+build() coloca tudo no template ficha.html e o WeasyPrint transforma o HTML em PDF.
+montar_ficha(), no fim do arquivo, é o "diretor": é ele que decide a ordem das seções.
 """
 from __future__ import annotations
 
@@ -53,8 +58,10 @@ class Ficha:
 
 @dataclass
 class FichaAtendimentoBuilder:
+    # Cada método preenche um pedaço do _ctx e devolve self: por isso dá para fazer .a().b().c()
     _ctx: dict = field(default_factory=dict)
 
+    # Camada 1: número, data e a cor da triagem.
     def cabecalho(self, a: dict) -> FichaAtendimentoBuilder:
         t = a["triagem"]
         self._ctx.update(
@@ -72,6 +79,7 @@ class FichaAtendimentoBuilder:
         )
         return self
 
+    # Camada 2: dados da vítima + prontuário (tipo sanguíneo e alergias).
     def paciente(self, p: dict, pr: dict) -> FichaAtendimentoBuilder:
         self._ctx["paciente"] = {
             "nome": p["nome"],
@@ -86,10 +94,12 @@ class FichaAtendimentoBuilder:
         }
         return self
 
+    # Camada 3: local, queixa e observações.
     def ocorrencia(self, a: dict) -> FichaAtendimentoBuilder:
         self._ctx["ocorrencia"] = {"local": a["local"], "queixa": a["queixaPrincipal"], "observacoes": a.get("observacoes")}
         return self
 
+    # Camada 4: Glasgow e sinais vitais.
     def avaliacao(self, a: dict) -> FichaAtendimentoBuilder:
         g, s = a["glasgow"], a["sinaisVitais"]
         self._ctx["glasgow"] = {
@@ -105,6 +115,7 @@ class FichaAtendimentoBuilder:
         ]
         return self
 
+    # Camada 5: medicamentos dados, com hora, dose e via.
     def medicamentos(self, itens: list[dict], catalogo: list[dict]) -> FichaAtendimentoBuilder:
         nomes = {m["id"]: m for m in catalogo}
         self._ctx["medicamentos"] = [
@@ -119,10 +130,12 @@ class FichaAtendimentoBuilder:
         ]
         return self
 
+    # Camada 6: quem atendeu.
     def responsavel(self, nome: str) -> FichaAtendimentoBuilder:
         self._ctx["responsavel"] = nome
         return self
 
+    # Última camada: HTML com os dados → PDF.
     def build(self, emitido_por: str) -> Ficha:
         env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html"]))
         self._ctx["emitido"] = f"{datetime.now(FUSO).strftime('%d/%m/%Y %H:%M')} por {emitido_por}"

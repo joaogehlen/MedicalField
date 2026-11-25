@@ -38,7 +38,7 @@ export async function carregarAtendimentos(db: Db, ids: string[]): Promise<Atend
 @Injectable()
 export class AtendimentoService {
   /** Atendimento registrado é imutável: num conflito, o registro do servidor prevalece. */
-  private readonly estrategia = new ServerWinsStrategy<Atendimento>();
+  private readonly estrategia = new ServerWinsStrategy<Atendimento>(); // Strategy: atendimento registrado não muda
 
   constructor(private readonly db: DatabaseService, private readonly sync: SyncSupport) {}
 
@@ -124,6 +124,7 @@ export class AtendimentoService {
     for (const m of a.medicamentos) {
       const medicamento = catalogo.get(m.medicamentoId);
       if (!medicamento) throw new ApiError(HttpStatus.UNPROCESSABLE_ENTITY, 'VALIDACAO', 'Dados inválidos', 'Medicamento não existe no catálogo.');
+      // Chain of Responsibility no servidor: a mesma corrente confere de novo (422 se barrar).
       const alertas = avaliarAdministracao({ medicamento, dose: m.dose, via: m.via, alergias });
       if (alertas.length) {
         throw new ApiError(HttpStatus.UNPROCESSABLE_ENTITY, 'REGRA_CLINICA', 'Regra de segurança clínica', alertas[0], { alertas });

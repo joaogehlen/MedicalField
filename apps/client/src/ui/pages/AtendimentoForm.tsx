@@ -47,6 +47,7 @@ export function AtendimentoForm() {
     if (!medSelecionado || !novo.dose || !novo.via) return;
     const dose = Number(novo.dose.replace(',', '.'));
     const via = novo.via as ViaAdministracao;
+    // Chain of Responsibility no aparelho: bloqueia na hora, mesmo sem internet.
     const problemas = avaliarAdministracao({ medicamento: medSelecionado, dose, via, alergias: prontuario!.alergias });
     setAlertas(problemas);
     if (problemas.length) return;

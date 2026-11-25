@@ -9,7 +9,7 @@ Os 17 passos oficiais, com a ação, a API envolvida e o resultado esperado. O r
 | P1 | Banco zerado com dados de demonstração | Na VM: `./mf.sh zerar` ([07](07-implantacao-vm.md)). Local sem Docker: `infra/scripts/reset-db.sh` e `infra/scripts/start-all.sh` |
 | P2 | Duas janelas | Portal (`/portal`) à esquerda; cliente (`/app`) à direita, ou no celular |
 | P3 | Terminal SSH na VM | para o passo 9 (`./mf.sh passo9`) |
-| P4 | Postman | `postman/MedicalField.postman_collection.json` (opcional, para mostrar as rotas) |
+| P4 | Insomnia | `insomnia/MedicalField.insomnia.json` (pasta “0 · Roteiro da apresentação”; guia em [10](10-explicado-simples.md#3-insomnia)) |
 
 | Acesso | Tipo | Número | Senha (demo) |
 |---|---|---|---|

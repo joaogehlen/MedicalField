@@ -8,7 +8,7 @@ import { houveConflito, SyncSupport, type RespostaGravada } from '../sync/sync-s
 
 @Injectable()
 export class PessoaService {
-  private readonly estrategia = new LastWriteWinsStrategy<Pessoa>();
+  private readonly estrategia = new LastWriteWinsStrategy<Pessoa>(); // Strategy: vence a edição mais nova
 
   constructor(private readonly sync: SyncSupport) {}
 
@@ -35,7 +35,8 @@ export class PessoaService {
     }
 
     const servidor = pessoaDeLinha(linha);
-    const conflito = houveConflito(servidor.version!, input.baseVersion);
+    const conflito = houveConflito(servidor.version!, input.baseVersion); // alguém mudou no meio do caminho?
+    // Strategy: no conflito, pergunta à estratégia quem vence, sem saber qual algoritmo ela usa.
     const final = conflito ? this.estrategia.resolve(servidor, recebido) : recebido;
     const r = await tx
       .one(

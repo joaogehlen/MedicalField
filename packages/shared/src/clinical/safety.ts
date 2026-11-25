@@ -1,6 +1,11 @@
 /**
- * Regras de segurança clínica para administrar medicamentos — padrão Chain of
- * Responsibility. A mesma cadeia roda no aparelho (offline) e no clinical-service.
+ * PADRÃO CHAIN OF RESPONSIBILITY — "a fila de fiscais"
+ *
+ * Antes de dar um remédio, o pedido passa por uma corrente de fiscais:
+ *   ViaRule → DoseMaximaRule → AlergiaRule
+ * Cada fiscal confere só a sua parte, anota um alerta se achar problema e passa adiante.
+ * Lista de alertas vazia = pode administrar. A mesma corrente roda no aparelho (offline)
+ * e no clinical-service. Regra nova = um elo novo na corrente.
  */
 import type { Medicamento, ViaAdministracao } from '../domain';
 import { normalizarTexto } from '../text';
@@ -16,12 +21,13 @@ export interface ContextoAdministracao {
 export abstract class RegraSeguranca {
   private proxima: RegraSeguranca | null = null;
 
+  // Liga este fiscal ao próximo da fila.
   encadear(proxima: RegraSeguranca): RegraSeguranca {
     this.proxima = proxima;
     return proxima;
   }
 
-  /** Avalia esta regra e repassa para a próxima, acumulando os alertas. */
+  // Confere a minha parte e passo para o próximo fiscal.
   avaliar(ctx: ContextoAdministracao, alertas: string[] = []): string[] {
     const alerta = this.verificar(ctx);
     if (alerta) alertas.push(alerta);
@@ -31,6 +37,7 @@ export abstract class RegraSeguranca {
   protected abstract verificar(ctx: ContextoAdministracao): string | null;
 }
 
+// Fiscal 1: essa via (IV, IM, VO...) é permitida para o remédio?
 export class ViaRule extends RegraSeguranca {
   protected verificar({ medicamento, via }: ContextoAdministracao) {
     return medicamento.viasPermitidas.includes(via)
@@ -39,6 +46,7 @@ export class ViaRule extends RegraSeguranca {
   }
 }
 
+// Fiscal 2: a dose passa da máxima?
 export class DoseMaximaRule extends RegraSeguranca {
   protected verificar({ medicamento, dose }: ContextoAdministracao) {
     return dose <= medicamento.doseMaxima
@@ -47,6 +55,7 @@ export class DoseMaximaRule extends RegraSeguranca {
   }
 }
 
+// Fiscal 3: o paciente é alérgico a esse remédio (ou a um componente dele)?
 export class AlergiaRule extends RegraSeguranca {
   protected verificar({ medicamento, alergias }: ContextoAdministracao) {
     const termos = [medicamento.nome, ...medicamento.alergenos].map(normalizarTexto);
@@ -58,7 +67,7 @@ export class AlergiaRule extends RegraSeguranca {
   }
 }
 
-/** Via → dose máxima → alergia. */
+// Monta a corrente: via → dose máxima → alergia.
 export function avaliarAdministracao(ctx: ContextoAdministracao): string[] {
   const cadeia = new ViaRule();
   cadeia.encadear(new DoseMaximaRule()).encadear(new AlergiaRule());

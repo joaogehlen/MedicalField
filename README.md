@@ -42,7 +42,7 @@ Padrões de projeto: **Repository**, **Strategy** e **Observer** (exigidos), mai
 infra/scripts/start-all.sh          # sem Docker: banco, build, três serviços e Nginx
 # Cliente:  http://localhost:8080/app/       CRM 12345 / RS · senha medicalfield
 # Portal:   http://localhost:8080/portal/    ID Socorrista 0001 · senha medicalfield
-# API:      http://localhost:8080/api        (coleção em postman/)
+# API:      http://localhost:8080/api        (coleção em insomnia/)
 ```
 
 **Com Docker (VM da Univates)** — tudo em containers, um comando ([guia](docs/07-implantacao-vm.md)):
@@ -75,6 +75,7 @@ cd tests/e2e && npm install && npx playwright install chromium && node roteiro.m
 | 07 | [Implantação na VM](docs/07-implantacao-vm.md) | Nginx, systemd, e-mail, operação |
 | 08 | [Desenvolvimento](docs/08-desenvolvimento.md) | Estrutura do código e testes |
 | 09 | [Padrões de projeto no código](docs/09-design-patterns.md) · [PDF](docs/MedicalField-Design-Patterns.pdf) | Os 7 padrões com o código real, como funcionam e como demonstrar |
+| 10 | [Explicado para um macaco](docs/10-explicado-simples.md) · [PDF](docs/MedicalField-Explicado-Simples.pdf) | Guia simples da apresentação: login, rotas, Insomnia, PDF, e-mail no Mailpit e padrões |
 | — | [DESIGN.md](DESIGN.md) · [PRODUCT.md](PRODUCT.md) | Sistema de design (Impeccable) |
 
 Todos os pacientes e dados pessoais do sistema são fictícios. Fotos: Wikimedia Commons, domínio público ([créditos](packages/design/img/CREDITOS.md)).

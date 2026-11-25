@@ -1,7 +1,7 @@
 /**
- * SyncEngine — Observer do NetworkMonitor. Quando a conexão volta, envia a Outbox
- * (em ordem: pessoa → prontuário → atendimento) e os logs do aparelho, e depois
- * recebe as mudanças da central (pull por cursor).
+ * SyncEngine — o Observer do NetworkMonitor (ver network.ts).
+ * Quando a internet volta: 1) envia a fila (Outbox) executando cada Command (ver commands.ts),
+ * 2) envia os logs do aparelho, 3) busca na central o que mudou (pull por cursor).
  */
 import type { PullResponse } from '@medicalfield/shared';
 import { api, ApiError, dispositivoId, novoId, SemConexaoError } from '../api/client';
@@ -25,7 +25,7 @@ export class SyncEngine implements NetworkObserver {
   private fila: Promise<void> = Promise.resolve();
 
   iniciar() {
-    network.subscribe(this);
+    network.subscribe(this); // Observer: entra no "grupo de avisos" da rede
     void Promise.all([db.lerMeta<string | null>('ultimoEnvio', null), db.lerMeta<string | null>('ultimoRecebimento', null)]).then(
       ([ultimoEnvio, ultimoRecebimento]) => this.definir({ ultimoEnvio, ultimoRecebimento }),
     );
@@ -45,12 +45,12 @@ export class SyncEngine implements NetworkObserver {
     this.ouvintes.forEach((o) => o(this.estado));
   }
 
-  /** Observer: ao passar de offline para online, sincroniza sozinho. */
+  // Observer: o NetworkMonitor chama isto. Voltou a internet? Sincroniza sozinho.
   onNetworkChange(online: boolean) {
     if (online === this.online) return;
     this.online = online;
     void registrarLog(online ? 'REDE_ONLINE' : 'REDE_OFFLINE');
-    if (online) void this.sincronizar();
+    if (online) void this.sincronizar(); // voltou a internet: envia a fila sozinho, sem clique
   }
 
   /** Chamado após cada gravação: estando online, envia na hora. */
@@ -93,7 +93,7 @@ export class SyncEngine implements NetworkObserver {
     if (!network.isOnline()) return;
     for (const op of await db.outbox.where('status').equals('PENDENTE').sortBy('seq')) {
       try {
-        await comandoPara(op).execute();
+        await comandoPara(op).execute(); // Command: executa o pedido guardado na fila
         await db.outbox.update(op.seq!, { status: 'CONCLUIDO', erro: null });
       } catch (e) {
         // Erro de validação ou regra clínica: não adianta reenviar; o resto segue.

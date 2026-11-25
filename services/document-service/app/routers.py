@@ -1,4 +1,9 @@
-"""Rotas do document-service: ficha de atendimento em PDF e envio por e-mail."""
+"""
+Rotas do document-service: ficha de atendimento em PDF e envio por e-mail.
+
+PDF:    GET  /ficha/{id}/pdf   → busca o atendimento no clinical-service → Builder monta o PDF → download
+E-mail: POST /ficha/{id}/email → gera o mesmo PDF → Adapter entrega (Mailpit) → grava em document.envio_email
+"""
 import uuid
 
 from fastapi import APIRouter, Depends, Request
@@ -22,6 +27,7 @@ class EnvioRequest(BaseModel):
     nome: str | None = Field(default=None, max_length=160)
 
 
+# Pega os dados do atendimento (com o token de quem pediu) e monta o PDF com o Builder.
 def _ficha(atendimento_id: uuid.UUID, usuario: Usuario):
     detalhe = clinical_client.atendimento_detalhe(str(atendimento_id), usuario.token)
     return detalhe, montar_ficha(detalhe, usuario.nome)
@@ -56,7 +62,7 @@ def enviar_email(atendimento_id: uuid.UUID, corpo: EnvioRequest, request: Reques
         anexo=Anexo(ficha.nome_arquivo, ficha.pdf),
     )
     try:
-        message_id, erro = criar_sender(settings()).enviar(mensagem), None
+        message_id, erro = criar_sender(settings()).enviar(mensagem), None  # Adapter
     except Exception as e:  # noqa: BLE001 — a falha é registrada e devolvida
         message_id, erro = None, f"{e.__class__.__name__}: {e}"[:500]
     with transacao() as conn:

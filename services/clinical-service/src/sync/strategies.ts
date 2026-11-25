@@ -1,6 +1,13 @@
 /**
- * Padrão Strategy: algoritmos de resolução de conflito, aplicados quando chega uma
- * edição feita sobre uma versão antiga do registro (baseVersion < version).
+ * PADRÃO STRATEGY — "cada campeonato tem a sua regra de desempate"
+ *
+ * Problema: dois aparelhos offline editam o mesmo registro. Quando os dois sincronizam, quem vence?
+ * Todas as estratégias têm o mesmo método: resolve(servidor, recebido).
+ * Cada serviço escolhe a sua e só chama resolve(), sem saber qual algoritmo está rodando:
+ *   Pessoa      → LastWriteWinsStrategy (vence a edição mais nova)
+ *   Prontuário  → MergeStrategy         (junta as listas: nenhuma alergia se perde)
+ *   Atendimento → ServerWinsStrategy    (o que já está na central não muda)
+ * Conflito = a edição chegou com baseVersion menor que a versão do banco (houveConflito).
  */
 import { uniaoTermos } from '@medicalfield/shared';
 
@@ -10,6 +17,7 @@ export interface ComRelogio {
   atualizadoEmCliente: string;
 }
 
+// O contrato comum de todas as estratégias.
 export interface ConflictResolutionStrategy<T> {
   readonly nome: NomeEstrategia;
   resolve(servidor: T, recebido: T): T;
@@ -22,7 +30,7 @@ const recebidoMaisRecente = (s: ComRelogio, r: ComRelogio) =>
 export class LastWriteWinsStrategy<T extends ComRelogio> implements ConflictResolutionStrategy<T> {
   readonly nome = 'LWW' as const;
   resolve(servidor: T, recebido: T): T {
-    return recebidoMaisRecente(servidor, recebido) ? recebido : servidor;
+    return recebidoMaisRecente(servidor, recebido) ? recebido : servidor; // o horário mais novo vence
   }
 }
 
@@ -37,8 +45,8 @@ export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionSt
   constructor(private readonly listas: readonly (keyof T)[]) {}
 
   resolve(servidor: T, recebido: T): T {
-    const out = { ...this.lww.resolve(servidor, recebido) };
-    for (const campo of this.listas) {
+    const out = { ...this.lww.resolve(servidor, recebido) }; // 1) campos simples: o mais novo vence
+    for (const campo of this.listas) { // 2) listas (alergias, comorbidades): junta as duas, sem repetir
       out[campo] = uniaoTermos(servidor[campo] as string[], recebido[campo] as string[]) as T[keyof T];
     }
     return out;
@@ -49,6 +57,6 @@ export class MergeStrategy<T extends ComRelogio> implements ConflictResolutionSt
 export class ServerWinsStrategy<T> implements ConflictResolutionStrategy<T> {
   readonly nome = 'SERVIDOR_VENCE' as const;
   resolve(servidor: T): T {
-    return servidor;
+    return servidor; // ignora o que chegou: fica o que já está na central
   }
 }

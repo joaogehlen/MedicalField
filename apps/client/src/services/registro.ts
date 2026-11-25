@@ -31,7 +31,8 @@ async function gravar<T extends SyncMeta & { id: string }>(
   }) as T;
   const registro = { ...validado, version: existente?.version };
   await db.transaction('rw', tabela, db.outbox, async () => {
-    await tabela.put({ ...registro, syncStatus: 'PENDENTE' } as T & Local);
+    await tabela.put({ ...registro, syncStatus: 'PENDENTE' } as T & Local); // grava no aparelho
+    // Command: guarda o "pedido" na fila (Outbox) para ser executado quando houver internet.
     await db.outbox.add({ opId: novoId(), tipo, entidadeId: registro.id, status: 'PENDENTE', criadoEm: new Date().toISOString() });
   });
   await registrarLog(`${tipo}_${existente ? 'ALTERADO' : 'CRIADO'}`, { id: registro.id });

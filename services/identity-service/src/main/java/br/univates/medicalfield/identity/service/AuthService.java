@@ -25,7 +25,13 @@ public class AuthService {
         this.jwt = jwt;
     }
 
-    /** Autentica pelo registro profissional (CRM, COREN ou ID de socorrista) e emite o JWT. */
+    /**
+     * LOGIN, passo a passo:
+     *  1. Procura o profissional pelo registro (CRM ou COREN + UF, ou ID de socorrista sem UF).
+     *  2. Confere se está ativo e se a senha bate com o hash Argon2 guardado no banco.
+     *  3. Errou? 401 CREDENCIAIS_INVALIDAS. Acertou? Devolve o token JWT (assinado com RS256).
+     * Daí em diante o token vai em toda requisição: Authorization: Bearer <token>.
+     */
     public LoginResponse login(LoginRequest req) {
         boolean socorrista = req.tipoRegistro() == TipoRegistro.SOCORRISTA;
         String uf = socorrista || req.uf() == null || req.uf().isBlank() ? null : req.uf().trim().toUpperCase();
