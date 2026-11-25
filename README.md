@@ -74,6 +74,7 @@ cd tests/e2e && npm install && npx playwright install chromium && node roteiro.m
 | 06 | [Roteiro de testes](docs/06-roteiro-testes.md) | **E3** — 17 passos, capturas e testes automatizados |
 | 07 | [Implantação na VM](docs/07-implantacao-vm.md) | Nginx, systemd, e-mail, operação |
 | 08 | [Desenvolvimento](docs/08-desenvolvimento.md) | Estrutura do código e testes |
+| 09 | [Padrões de projeto no código](docs/09-design-patterns.md) · [PDF](docs/MedicalField-Design-Patterns.pdf) | Os 7 padrões com o código real, como funcionam e como demonstrar |
 | — | [DESIGN.md](DESIGN.md) · [PRODUCT.md](PRODUCT.md) | Sistema de design (Impeccable) |
 
 Todos os pacientes e dados pessoais do sistema são fictícios. Fotos: Wikimedia Commons, domínio público ([créditos](packages/design/img/CREDITOS.md)).
