@@ -2,6 +2,8 @@
 
 Código: `apps/client/src/sync/`, `apps/client/src/services/registro.ts` e `services/clinical-service/src/sync/`.
 
+![Fluxo da sincronização offline](sincronizacao.png)
+
 ## 1. Princípios
 
 1. **Local primeiro, sempre.** Toda escrita vai ao IndexedDB e gera um *Command* na Outbox **na mesma transação**.
