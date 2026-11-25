@@ -12,6 +12,8 @@ Ordem sugerida: **1. Login → 2. Rotas da API (PDF) → 3. Insomnia → 4. PDF 
 
 > O socorrista anota o atendimento no celular **mesmo sem internet**. Quando a internet volta, tudo vai sozinho para a central. A central vê pelo portal, gera a ficha em **PDF** e manda por **e-mail** para a família.
 
+![Arquitetura do MedicalField](arquitetura.png)
+
 Quem é quem (pense numa **fazenda de macacos**):
 
 | Peça | O que é | Comparação |

@@ -10,6 +10,10 @@ O socorrista registra a ficha de atendimento pré-hospitalar no aparelho **mesmo
 
 ## Arquitetura
 
+![Arquitetura do MedicalField: microsserviços e linguagens](docs/arquitetura.png)
+
+Versão vetorial: [docs/arquitetura.svg](docs/arquitetura.svg).
+
 ```mermaid
 flowchart LR
     client["📱 Cliente<br/>React + IndexedDB"] --> gw
